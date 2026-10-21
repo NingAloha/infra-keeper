@@ -44,9 +44,25 @@ stage B (matching SHA accepted) and stage C-2 (stale SHA rejected).
 
 | Version | Blob SHA | Recorded at |
 | --- | --- | --- |
-| v1 | pending | stage B |
+| v1 | 16907d8efbf835d15f8f5461774f0f139af6ff16 | stage A |
 | v2 | pending | stage C-1 |
 | v3 (operator) | pending | stage C-1 |
+
+## Stage A result
+
+Creation sent no `sha` in the request body, so the endpoint treated the call as a new file. `main`
+advanced from `b9c9845d200fa3c7a396f89ea940f1e0ec2a4632` to
+`5d350208272823d861b42b93b6d79ad4b3cd538b` in one commit, whose `files` array holds this path only
+(`status: added`, `+63/-0`). Author and committer are both `NingAloha`, which distinguishes a
+CLI-originated commit from a web-editor commit made by `web-flow`.
+
+The byte-level check read the file back through the raw media type: 3229 bytes with SHA-256
+`d609629209285f514907dc8e239a8ed33dbb8c15c170699c1eff039619018834`, identical to the approved
+draft, and the returned blob SHA `16907d8efbf835d15f8f5461774f0f139af6ff16` matched the value that
+had been computed locally before the write.
+
+Stage B has not been executed. No `sha` precondition has yet been exercised against this endpoint,
+and no stale-SHA rejection has been attempted.
 
 ## Constraints observed
 
