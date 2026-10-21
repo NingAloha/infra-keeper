@@ -25,6 +25,26 @@ gh api repos/OWNER/REPO/git/trees/main -f recursive=1 --method GET
 
 Use `gh api` or permitted local read-only Git commands where appropriate; inspect returned data carefully. Avoid printing authentication headers, sensitive URLs, or secret-bearing raw logs. Check whether the repository actually has a `main` branch before proceeding.
 
+## Version preconditions (measured)
+
+The Contents API is the version-aware path on this backend. One manual CLI lifecycle test measured
+its behaviour on a public repository:
+
+- `PUT /repos/{owner}/{repo}/contents/{path}` requires `sha` to replace an existing file. A stale
+  value was rejected with `HTTP 409` and a body naming the supplied SHA; no commit, no new `HEAD`
+  and no byte change resulted. A matching value was accepted and produced the expected commit.
+- `DELETE` on the same path requires `sha` for the file being deleted, and a delete carrying a
+  matching value succeeded.
+
+The rejection came from GitHub itself: the response carried `Server: github.com` and a GitHub
+request ID, so on this endpoint the comparison is enforced by the server that creates the commit,
+not only by the client.
+
+What was **not** measured: whether a stale `sha` is also rejected on `DELETE`. Only the matching
+case was run, because a failed assertion there would remove a path. Do not present the `PUT`
+result as if it covered deletes, and do not treat a matching-value delete as proof that a stale
+one would be refused.
+
 ## Writes: approval first
 
 For an approved documentation change, prefer a local checked-out repository and ordinary *non-force* commits when the working tree and branch are known. These are **illustrative**, not unattended commands:
@@ -45,7 +65,7 @@ git push origin main
 
 Do not run `git add -A`, `git push --force`, or commit unrelated local changes. If the tree is dirty, `main` differs from the expected upstream, or a concurrent update occurs, stop and reassess. Verify remote files and the final commit via GitHub read operations after pushing.
 
-Alternatively, a client may use approved `gh api` GitHub Contents API or Git Tree/Commit API calls, but must respect version SHA preconditions and partial-update risks. Never encode secret values into shell command arguments, files or logs.
+Alternatively, a client may use approved `gh api` GitHub Contents API or Git Tree/Commit API calls, but must respect version SHA preconditions and partial-update risks. See [Version preconditions (measured)](#version-preconditions-measured) for what has actually been observed on this endpoint and what has not. Never encode secret values into shell command arguments, files or logs.
 
 ## Restrictions
 
