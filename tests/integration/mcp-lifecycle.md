@@ -32,8 +32,8 @@ separately, so a C-2 result cannot be mistaken for a C-1 pass.
 | Version | Pre-image blob SHA | Recorded at |
 | --- | --- | --- |
 | v1 | 5c7f5a359e844e43291aa53fdb66ef278ec371e9 | stage B |
-| v2 | _filled in by stage C-1_ | stage C-1 |
-| v3 (operator) | _filled in by stage C-1_ | stage C-1 |
+| v2 | c5b760e21ff22d3bb0ed1987754956be2a780fc2 | stage C-1 |
+| v3 (operator) | ad28e6de5ca54667b59ef107707a2cb4c743b802 | stage C-1 |
 
 ## Stage B — existing-file update guarded by blob SHA
 
@@ -65,10 +65,11 @@ the test report; it is not eliminated by this test.
 - Content is restored byte for byte, so the restored blob SHA must equal the pre-delete
   blob SHA while the commit SHA must differ.
 
-## Limitations
-
 ## External concurrent edit — C-1
 
 This line was added manually through the GitHub web editor to test InfraKeeper's approval-window concurrency guard.
+
+## Limitations
+
 This record documents GitHub documentation tooling only. It is not evidence of runtime
 or infrastructure health.
