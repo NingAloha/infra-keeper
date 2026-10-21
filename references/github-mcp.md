@@ -2,7 +2,7 @@
 
 ## Dependency contract
 
-InfraKeeper requires a GitHub MCP integration authenticated by the **host Agent platform**. Users do not need a locally installed `gh` CLI or an interactive `gh auth login` session. Actual GitHub repository access and write privileges depend on the connected identity, repository permissions, exposed MCP tools, and platform safety rules.
+GitHub MCP is the **preferred but optional** backend, authenticated by the **host Agent platform**. Users choosing GitHub MCP do not need a locally installed `gh` CLI or an interactive `gh auth login` session. For agents without GitHub MCP, the alternative GitHub CLI backend is described in [github-cli.md](github-cli.md). Actual GitHub repository access and write privileges depend on the connected identity, repository permissions, exposed MCP tools, and platform safety rules.
 
 The skill depends on **capabilities**, not provider-specific MCP function names. On invocation inspect which tools are available.
 
@@ -31,11 +31,11 @@ If no atomic multi-file commit operation is exposed, disclose the possibility of
 
 ## Connection and permission failures
 
-- **No GitHub MCP:** stop GitHub operations and explain what connection is needed.
+- **No GitHub MCP:** use the GitHub CLI alternative only when installed, authorized and available, per [backend selection](github-backends.md). Otherwise explain the missing connection.
 - **Repository inaccessible:** request an authorized connection or correct repository selector. Do not probe unrelated accounts.
 - **Read-only integration:** perform only reads, prepare a diff if useful, and explain why no commit can be made.
-- **Missing tool:** report the unavailable action; do not switch to CLI, raw HTTP, or browser write automation.
-- **Tool or safety rejection:** stop; do not try alternate tools to bypass a denied action.
+- **Missing tool:** report the unavailable action; a permitted, disclosed CLI backend may be used for capability gaps, but never to evade a policy or security denial.
+- **Tool or safety rejection:** stop; never switch to CLI or another tool to bypass a denied action.
 - **Concurrent edit:** fetch newest version, show conflicts, and obtain new approval if changes require a materially revised diff.
 
 ## Data handling
