@@ -31,9 +31,21 @@ separately, so a C-2 result cannot be mistaken for a C-1 pass.
 
 | Version | Pre-image blob SHA | Recorded at |
 | --- | --- | --- |
-| v1 | _filled in by stage B_ | stage B |
+| v1 | 5c7f5a359e844e43291aa53fdb66ef278ec371e9 | stage B |
 | v2 | _filled in by stage C-1_ | stage C-1 |
 | v3 (operator) | _filled in by stage C-1_ | stage C-1 |
+
+## Stage B — existing-file update guarded by blob SHA
+
+The pre-image was read from `main` immediately before this write and returned blob SHA
+`5c7f5a359e844e43291aa53fdb66ef278ec371e9` (2871 bytes, 59 lines). That SHA is passed to
+`create_or_update_file` as its `sha` argument, so GitHub accepts the commit only if `main`
+still holds exactly that version. The intended behavior is rejection rather than overwrite
+if the pre-image changes; this will be tested separately in stage C-2.
+
+The post-image blob SHA cannot appear in this section: it does not exist until the commit
+that contains this text is created. It is recorded in the test report and in the next
+stage's approval.
 
 ## Known control gap: deletion has no SHA guard
 
