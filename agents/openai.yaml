@@ -1,6 +1,0 @@
-interface:
-  display_name: "InfraKeeper"
-  short_description: "Safely maintain documented infrastructure"
-  default_prompt: "Use $infrakeeper to review the documented baseline and plan a safe infrastructure change."
-policy:
-  allow_implicit_invocation: true
