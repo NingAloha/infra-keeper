@@ -62,6 +62,12 @@ A re-read performed by the client immediately before writing is a different mech
 
 A successful call does not tell you which of the two you received, and an error message does not always make it clear either. Report a client-side pre-read as a pre-read, never as a server-side check, and do not describe the two as equivalent safeguards.
 
+Measured once: an update through the GitHub REST Contents API (CLI backend) was rejected by the
+API itself with `409`, and the response carried `Server: github.com` and a GitHub request ID. That
+rejected write produced no commit. This is the server-side case above. The same repository's MCP
+path produced a prose rejection whose layer was not identified, so the two backends still support
+different claims.
+
 ## After a conflict
 
 A rejected write is a conflict signal, not a retry signal.
@@ -74,12 +80,17 @@ A rejected write is a conflict signal, not a retry signal.
 
 ## Backends without conditional delete
 
-Some backends expose delete without accepting a version identifier.
+Some backends expose delete without accepting a version identifier. The GitHub MCP `delete_file` tool is one: it accepts `owner`, `repo`, `path`, `message` and `branch` only.
 
 - Such a delete cannot be conditioned on the version you read, and no amount of re-reading removes that. An edit landing between the read and the delete is removed without anything rejecting the operation.
 - The consequence is about approval, not forensics: the latest file state can be deleted without a fresh approval, even though the approval you obtained described a version that no longer existed. Earlier versions remain in the commit history and can be restored by a new commit.
 - Re-reading immediately before deleting, and verifying the resulting commit's file list afterwards, are **detection** measures. They do not prevent the deletion and must not be described as an atomicity guarantee.
 - State this residual risk in the approval request before deleting, and repeat it in the report afterwards.
+
+Not every backend shares this gap. The GitHub REST Contents API requires `sha` on delete, and a
+delete carrying a matching value has been observed to succeed. Whether it rejects a stale value has
+not been tested, so the presence of the parameter must not be read as a guarantee that a stale
+delete would be refused.
 
 ## Recovery
 
