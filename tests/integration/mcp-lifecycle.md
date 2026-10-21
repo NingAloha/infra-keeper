@@ -67,5 +67,8 @@ the test report; it is not eliminated by this test.
 
 ## Limitations
 
+## External concurrent edit — C-1
+
+This line was added manually through the GitHub web editor to test InfraKeeper's approval-window concurrency guard.
 This record documents GitHub documentation tooling only. It is not evidence of runtime
 or infrastructure health.
