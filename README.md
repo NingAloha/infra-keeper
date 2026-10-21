@@ -1,46 +1,36 @@
 # InfraKeeper
 
-InfraKeeper is an experimental, evidence-first infrastructure documentation **Agent Skill**, distributed in a portable **Agent Plugin** wrapper.
+InfraKeeper is an experimental, portable **Agent Plugin** wrapping a standard **Agent Skill** for evidence-first infrastructure documentation maintenance.
 
-## Layout
+## Package layout
 
 ```text
 plugin.json
-skills/infra-keeper/
-  SKILL.md
-  references/
-    github-backends.md
-    github-mcp.md
-    github-cli.md
-    github-workflow.md
+skills/infra-keeper/SKILL.md
+skills/infra-keeper/references/
+  github-backends.md
+  github-mcp.md
+  github-cli.md
+  github-workflow.md
 ```
 
-The Skill contains the workflow. The plugin manifest provides a package entry point for hosts that support portable agent plugins. The wrapper does **not** automatically install or authorize GitHub tools.
+The root `plugin.json` follows [Agent Plugins v1](https://agent-plugins.org/specification). The embedded Skill follows the [Agent Skills specification](https://agentskills.io/specification).
 
-## Prerequisites
+## Install / requirements
 
-Use **either**:
-- An authenticated GitHub MCP integration made available to your agent host (preferred), or
-- A locally installed and authenticated GitHub CLI (`gh`) in an agent environment with shell access.
+Use an Agent environment supporting Agent Plugins v1 to install this repository as a plugin. Clients that support standalone Skills can use `skills/infra-keeper/` directly. **Installation is not authentication**: configure either an authorized GitHub MCP connection (preferred) or an installed/authenticated GitHub CLI (`gh`) with shell execution.
 
-GitHub CLI: https://cli.github.com/ ; GitHub MCP: https://github.com/github/github-mcp-server .
+This version does **not** bundle an MCP server or automatically provision GitHub credentials. It has not yet been validated with Hermes Desktop or ChatGPT/Codex, and plugin support varies by client.
 
-## Policy
+## Safety and operation
 
-InfraKeeper reads and searches repository content automatically; **every mutation requires specific user approval**. Documentation commits go directly to `main`. No branch/PR management, history rewriting, force pushes, or repository administration. After a change, the agent reads back the repository state and reports the result.
+- Work against `main`; do not create/manage branches or PRs.
+- Automatic reads; explicit, diff-specific authorization for **every repository mutation**.
+- Never force-push, rewrite history, change repository settings, or bypass a denied operation by switching backends.
+- Check concurrent edits before writing; read back the commit and affected paths afterward.
+- Repository documentation is dated evidence, not live service status.
+- Never publish tokens, secrets, private keys, or sensitive infrastructure identifiers.
 
-See [the Skill](skills/infra-keeper/SKILL.md) and [backend guidance](skills/infra-keeper/references/github-backends.md).
+## Scope
 
-## Installation and validation
-
-Import this repository using your host's **plugin** installer where portable plugins are supported, or install the `skills/infra-keeper/` directory as a standard Agent Skill.
-
-Plugin discovery and runtime behavior vary by host; **Hermes and OpenAI installation are not yet verified end-to-end**. A compatible manifest alone does not guarantee the host installs the package or grants MCP / CLI access.
-
-## Status and scope
-
-This is the GitHub integration foundation, not a live infrastructure operator. No SSH, cloud operations, runtime checks, infrastructure templates, or tested integration suite are included yet.
-
-## Security
-
-Never commit credentials, tokens, private keys, or sensitive logs. Public fixtures must use fictionalized infrastructure. Use minimal GitHub permissions.
+This foundation only supplies GitHub-backed documentation workflows. Infrastructure templates, actual deployment tools, and end-to-end Agent tests are future work.
