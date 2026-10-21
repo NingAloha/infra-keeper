@@ -47,6 +47,26 @@ The `hermes mcp test github` command connected and discovered tools. After chang
 
 - [CLI execution evidence](../tests/hermes-smoke-test.md): approval-before-write and single-file creation on `main`.
 - [MCP execution evidence](../tests/hermes-mcp-smoke-test.md): MCP-only file/history reads, approval-before-write, creation on `main`, and content verification.
+- [MCP lifecycle evidence](../tests/integration/mcp-lifecycle.md): five-stage create / guarded update / stop-on-change / stale-version rejection / delete / restore test on `main`, MCP only.
 - Read/write tool discovery by itself does **not** establish access permission.
-- Existing-file update with blob SHA, deletion, multi-file commit, forced conflicts, and permission-denied behavior are **not** yet exercised.
-- No actual cloud server, DNS, or device was contacted by either smoke test.
+- Multi-file commits, move/rename, and permission-denied behavior are **not** yet exercised on either backend. The CLI backend has had no advanced lifecycle test.
+- No actual cloud server, DNS, or device was contacted by any of these tests.
+
+## MCP lifecycle test (A–E)
+
+Five separately approved stages against `tests/integration/mcp-lifecycle.md`, run entirely through GitHub MCP.
+
+| Stage | Action | Outcome |
+| --- | --- | --- |
+| A | Create the fixture | One commit, one file, body byte-identical to the approved draft |
+| B | Update using the blob SHA read immediately before | Accepted; 13 added, 1 removed, body byte-identical |
+| C-1 | Operator edited the same path in the GitHub web editor between approval and write | Agent re-read, saw a different blob SHA, made **zero** write calls, reported both SHAs |
+| C-2 | The same stale SHA resubmitted as a deliberate negative test | Rejected; no commit; `HEAD` and file unchanged |
+| D | Delete the fixture | One commit, exactly one path removed |
+| E | Restore the pre-delete copy by a new commit | Blob SHA returned to its pre-delete value; commit SHA new |
+
+Verified on this backend: create; update guarded by a version identifier; stopping on a detected concurrent change; rejection of a stale version identifier; delete; and content-exact restore without rewriting history.
+
+Not verified: whether the rejection came from the GitHub API or from the MCP server before the request left the client; multi-file or atomic commits; move/rename; permission-denied behavior; conditional delete; two independent human accounts acting concurrently.
+
+The MCP server's `delete_file` accepts only `owner`, `repo`, `path`, `message` and `branch`. It takes no version identifier, so a delete cannot be conditioned on the version the agent read. Re-reading immediately before deleting, and checking the resulting commit's file list, are detection measures only — they do not make the delete conditional. A concurrent edit inside that window can therefore remove the latest file state without a fresh approval, although earlier versions remain in the commit history and can be restored by a new commit.
