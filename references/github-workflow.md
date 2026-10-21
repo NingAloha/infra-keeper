@@ -39,7 +39,7 @@ Do not mutate before approval. A substantive change to the approved scope or dif
 
 1. Re-read the current `main` state and relevant file versions to avoid overwriting concurrent edits.
 2. If anything conflicts, stop, explain the difference, and revise the plan; seek approval again when needed.
-3. Apply only the approved changes to `main`. Prefer atomic multi-file commits if the connected GitHub MCP supports them. Never use force-push.
+3. Apply only the approved changes to `main`. Prefer atomic multi-file commits if the selected GitHub backend supports them. Never use force-push.
 4. If a partial multi-file update occurs, report exactly which files changed and which failed. Any repair is a separate mutation and needs approval if not covered by the original approved plan.
 5. Read back the resulting commit and all affected files; compare with the approved result.
 6. Report commit identifier, verified changes, remaining gaps, and the fact that runtime state was **not** validated by this step.
