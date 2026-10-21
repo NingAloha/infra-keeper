@@ -75,5 +75,8 @@ and no stale-SHA rejection has been attempted.
 
 ## Limitations
 
+## External concurrent edit — C-1
+
+This line was added through the GitHub web editor to test InfraKeeper's CLI approval-window concurrency guard.
 This record documents GitHub documentation tooling only. It is not evidence of runtime or
 infrastructure health.
