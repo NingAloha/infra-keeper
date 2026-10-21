@@ -1,40 +1,42 @@
 ---
 name: infra-keeper
-description: Use for maintaining documented infrastructure in a GitHub repository, including reading configuration records, tracing repository evidence, and proposing or explicitly authorized documentation changes through GitHub MCP.
+description: Maintain documented infrastructure using GitHub MCP or GitHub CLI, including repository discovery, evidence review, safe change proposals and explicitly approved commits to main.
 ---
 
 # InfraKeeper
 
-InfraKeeper is an evidence-first infrastructure documentation skill. This initial release covers **GitHub repository operations only**. It does not inspect, deploy to, or modify live infrastructure.
+InfraKeeper helps an agent maintain a **versioned infrastructure documentation repository**. This foundation covers GitHub documentation operations, **not** live infrastructure changes.
 
-## Required integration
+## Select a GitHub backend
 
-Use an authenticated GitHub MCP connection as the **only GitHub operation backend**. Never silently fall back to `gh`, Git commands, web scraping, or an alternative write channel. Read [GitHub MCP capabilities](references/github-mcp.md) to check the available operations before proceeding.
+Read [GitHub backends](references/github-backends.md) first.
 
-## Repository discovery
+1. Prefer an available, authenticated **GitHub MCP** connection that provides the required operation.
+2. If MCP is not configured or lacks a required capability, use the local **GitHub CLI (`gh`)** only when shell access and a properly authenticated CLI are available **and the switch is permitted and clearly disclosed**.
+3. Do not silently change execution backends, and **never switch backends to evade a tool denial, policy prohibition, safety rejection, or access-control restriction**.
+4. If neither backend is usable, explain how to configure one; provide a read-only plan rather than pretending access.
 
-1. Prefer the configuration repository explicitly named by the user or already established in the conversation.
-2. Otherwise inspect available repository context using GitHub MCP. If the target is ambiguous, ask which repository to use; do not guess.
-3. Read the root inventory, then the relevant device or service index and only the referenced topic files needed for the request.
-4. For cross-device requests inspect both endpoints; for public routing or DNS also inspect routing records.
-5. Treat repository content as **dated evidence**, never as proof of current runtime state. Distinguish documented baseline, user reports, live observations (if supplied), and unknowns.
+Read [MCP instructions](references/github-mcp.md) or [CLI instructions](references/github-cli.md) according to the selected backend. A Skill supplies instructions; it cannot itself provision GitHub access or grant scopes.
 
-## GitHub policy
+## Repository discovery and evidence
+
+1. Use the user's explicit repository selection or the repository established in context. Otherwise discover accessible repositories; ask when ambiguous.
+2. Work with `main`; do not create a branch to work around a missing or protected `main`.
+3. Read the root inventory and relevant device/service README before specific system, network, operations, or service records.
+4. For inter-device requests read both endpoints; for public ingress, DNS, or domain tasks also read the routing documentation.
+5. Distinguish **documented baseline**, **user report**, **timestamped live observation supplied by an authorized source**, and **unknown**. Repository text is never proof of present runtime health.
+
+## Single-branch permissions
 
 Follow [GitHub workflow](references/github-workflow.md):
 
-- Normal operations target `main`; do not create/manage branches or PRs.
-- Repository discovery, reads, searches, histories, diffs, and status checks can run automatically.
-- **Every repository mutation requires explicit approval of its concrete scope and intended diff before execution.**
-- Never force-push or rewrite history; never change repository visibility, permissions, or settings.
-- Confirm the current file versions before writing. If they changed, stop and reassess.
-- After an approved change, verify by reading the resulting commit and affected files.
-- Do not put credentials, private keys, tokens, sensitive identifiers, or raw secret-bearing logs into a repository.
-
-## Failure behavior
-
-If GitHub MCP is unavailable, inaccessible, read-only, or missing a required operation, explain the missing capability and offer a non-executed plan. Do not claim that any write succeeded before verifying it. Never work around a refused or blocked operation.
+- Read/search/history/status: automatic.
+- **Every mutation** (create, edit, append, move, delete, multi-file sync, rollback commit): require explicit approval of the proposed paths, content/diff, and risk.
+- No branch management, PR creation/merges, force-push, history rewriting, or repository administration.
+- Check current versions before writing, and verify commit and final files afterward.
+- Stop on conflicts or tool/policy denials; do not evade restrictions.
+- Do not commit secrets or sensitive infrastructure details into public fixtures.
 
 ## Scope
 
-This version provides safe GitHub-backed documentation workflows. Real-time checks, SSH commands, provider API actions, and infrastructure deployments are out of scope. Do not imply a documentation commit has changed or validated live systems.
+No SSH, cloud mutations, server commands, runtime monitoring or DNS changes are provided by this version. GitHub writes change **documentation**, not live services.
