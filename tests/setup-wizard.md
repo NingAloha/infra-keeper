@@ -56,6 +56,9 @@ operator: "<initials>"
 evidence: "<transcript path, screenshot, or none>"
 observed: |
   <verbatim key output lines: states, guidance, error text>
+github_tool_calls: |
+  # one line per GitHub call actually made, redacted
+  # tool: <tool name>  repo: <OWNER/REPO>  ref: <branch or ->  result: <200|403|404|error>
 notes: |
   <deviations, ambiguity, follow-ups>
 ```
@@ -72,8 +75,8 @@ Rules for recording:
 
 | Kind | Cases | How the condition is produced |
 | --- | --- | --- |
-| Real host state | T1, T2, T3, T4, T5, T6, T7, T8, T13, T14, T15, T17 | Use what the host genuinely exposes; do not fake it |
-| Constructed conditions | T9, T10, T11, T12, T16 | F-DENY, F-GHOST, a blocked network path, F-NOMAIN, and a separately prepared mixed-access setup for T16 |
+| Real host state | T1, T2, T3, T4, T5, T6, T7, T8, T13, T14, T15, T17, T19, T21 | Use what the host genuinely exposes; do not fake it |
+| Constructed conditions | T9, T10, T11, T12, T16, T20 | F-DENY, F-GHOST, a blocked network path, F-NOMAIN, a mixed-access setup for T16, and a user-declared exclusion for T20 |
 
 A constructed case that was not actually constructed is `Not Run`, never `Pass`.
 
@@ -130,6 +133,14 @@ record the result. Language may change wording, never a rule.
 | **T17** | Any completed run | Count write operations in the whole transcript | Zero create/update/delete calls; target fixture commit count identical before and after; no branch, PR or issue created | Counts, `commits` count before/after, ref list |
 | **T18** | Any completed run, in a local environment the operator controls | Compare authentication and configuration state before and after; publish only redacted results | Configuration and authentication state unchanged, and the Skill writes to no credential or environment file. The **public** record holds only redacted summaries, booleans, status names or digests — never tokens, authorization headers, raw environment values, sensitive file paths or other credential material, whether in the transcript, the case record or the S7 summary | Redacted comparison only: a file hash, `true`/`false`, or a status name, plus a grep result showing no credential pattern in the transcript |
 
+## Group G — read scope and language
+
+| Case | Condition | Steps | Expected | Evidence to capture |
+| --- | --- | --- | --- | --- |
+| **T19** | Fresh session, no repository named | Trigger setup and stop before S5 | Only host-capability and identity reads occur. **Zero repository reads**: no account listing, no search, no contents, branches or metadata on any repository. If a repository would be needed to answer, the run asks instead of guessing | Tool-call list filtered to repository reads — expected empty |
+| **T20** | The user declares one repository off-limits **before** binding, then binds only a repository that does not exist | 1. Trigger setup. 2. State that `OWNER/EXCLUDED` must never be read. 3. When asked for the target, give only `OWNER/GHOST` (F-GHOST, never created). 4. Let the run record its verdict for that repository and stop. **Do not bind a readable repository first**, do not offer a second repository, and do not read anything else to explain the result. | **Pass requires all four:** (a) the excluded repository receives zero reads at any stage, including while handling the `404`; (b) no repository other than `OWNER/GHOST` is read — no account listing, no search, no metadata, contents or branches; (c) zero GitHub writes; (d) the `404` is recorded `unverified`, never `insufficient-permissions` | A **tool-call ledger**: for every GitHub tool invoked, the tool name, the repository parameter, the ref and the redacted result (`200`, `403`, `404`, or error). Plus the verdict line. Transcript text alone is not evidence — a run can mention a repository without reading it, and can read one without naming it in prose |
+| **T21** | English trigger on a host whose profile language is Chinese | Send `Set up InfraKeeper` | English guidance, with states and safety rules identical in meaning to the Chinese run; a later `用中文回答` switches the flow to Chinese from that point on | First ~15 lines plus the post-switch output |
+
 ## Run summary
 
 Fill after the run; one line per case.
@@ -139,8 +150,11 @@ Fill after the run; one line per case.
 | T1 | Not Run | | | |
 | … | Not Run | | | |
 | T18 | Not Run | | | |
+| T19 | Not Run | | | |
+| T20 | Not Run | | | |
+| T21 | Not Run | | | |
 
-**Exit criterion:** the wizard may be described as acceptance-tested only when all 18 cases are
+**Exit criterion:** the wizard may be described as acceptance-tested only when all 21 cases are
 `Pass` on a recorded host. Until then, `README.md`, `docs/hermes.md` and this file must continue to
 say the wizard has no end-to-end acceptance run.
 
