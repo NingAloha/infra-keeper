@@ -46,7 +46,7 @@ Use [Infrastructure repository layout](references/repository-layout.md) for the 
 
 ## Workstation records
 
-For workstation documentation under `devices/workstations/<device-id>/`, follow [Workstation documentation](references/workstation.md). Use stable physical-device IDs, keep documents limited to evidenced facts, pending items and desired state, and describe actual changes in Git history. For v0.1 workstation registration and maintenance, the agent gives the user read-only OS-specific instructions; **the user operates the device and returns selected evidence**. Never use host shell, filesystem, SSH or remote tools to inspect a workstation, even if available. This does not enable direct device audits or authorize any write.
+For workstation documentation under `devices/workstations/<device-id>/`, follow [Workstation documentation](references/workstation.md). Use stable physical-device IDs, keep documents limited to evidenced facts, pending items and desired state, and describe actual changes in Git history. For v0.1 workstation registration and maintenance, the agent gives the user read-only OS-specific instructions; **the user operates the device and returns selected evidence**. Never use host shell, filesystem, SSH or remote tools to inspect a workstation, even if available. For new registration, initialize applicable field checklists as `待审计`; during later maintenance, scan the GitHub documents for unresolved fields and guide user-run checks in small batches. This does not enable direct device audits or authorize any write.
 
 ## Repository discovery and evidence
 
