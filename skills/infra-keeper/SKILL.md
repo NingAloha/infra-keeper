@@ -1,6 +1,6 @@
 ---
 name: infra-keeper
-description: Initialize InfraKeeper, configure or re-verify GitHub access (初始化、配置 GitHub 后端、重新验证连接), and maintain documented infrastructure using GitHub MCP or GitHub CLI, including repository discovery, evidence review, safe change proposals and explicitly approved commits to main.
+description: Initialize InfraKeeper, configure or re-verify GitHub access (初始化、配置 GitHub 后端、重新验证连接), and maintain documented infrastructure using GitHub MCP or GitHub CLI, including repository discovery, evidence review, workstation audit, guided user-executed changes and conversation-authorized documentation commits to main.
 ---
 
 # InfraKeeper
@@ -46,7 +46,7 @@ Use [Infrastructure repository layout](references/repository-layout.md) for the 
 
 ## Workstation records
 
-For workstation documentation under `devices/workstations/<device-id>/`, follow [Workstation documentation](references/workstation.md). Use stable physical-device IDs, keep documents limited to evidenced facts, pending items and desired state, and describe actual changes in Git history. For v0.1 workstation registration and maintenance, the agent gives the user read-only OS-specific instructions; **the user operates the device and returns selected evidence**. Never use host shell, filesystem, SSH or remote tools to inspect a workstation, even if available. For new registration, initialize applicable field checklists as `待审计`; during later maintenance, scan the GitHub documents for unresolved fields and guide user-run checks in small batches. This does not enable direct device audits or authorize any write.
+For workstation documentation under `devices/workstations/<device-id>/`, follow [Workstation documentation](references/workstation.md). Use stable physical-device IDs, keep documents limited to evidenced facts, pending items and desired state, and describe actual changes in Git history. For v0.1 workstation registration and maintenance, the agent gives the user read-only OS-specific instructions; **the user operates the device and returns selected evidence**. Never use host shell, filesystem, SSH or remote tools to inspect a workstation, even if available. For new registration, initialize applicable field checklists as `待审计`. For an existing workstation, use the three distinct workflows in that reference: routine audit, evidence-backed maintenance of reported changes, and needs-based recommendations followed by **user execution**, acceptance testing and documentation updates. Scan relevant GitHub documents for unresolved fields and guide user-run checks in small batches. This does not enable direct device audits or authorize any write.
 
 ## Repository discovery and evidence
 
@@ -60,12 +60,14 @@ For workstation documentation under `devices/workstations/<device-id>/`, follow 
 
 Follow [GitHub workflow](references/github-workflow.md):
 
-- Read/search/history/status: automatic.
-- **Every mutation** (create, edit, append, move, delete, multi-file sync, rollback commit): require explicit approval of the proposed paths, content/diff, and risk.
-- No branch management, PR creation/merges, force-push, history rewriting, or repository administration.
-- Check current versions before writing, and verify commit and final files afterward.
+- Read/search/history/status: automatic in the selected or verified bound repository.
+- For creates/edits, an **explicit, bounded documentation-write request or approval already given in the conversation** satisfies authorization. Do not ask again after preparing the diff if it matches that approved intent, paths and risks. Mere inspection, terminal output, device-operation approval or discussion is not authorization.
+- One task-scoped approval may cover all related files. Delete/retire/move/rename, repository rebind, bulk restructuring, material scope expansion and corrective rollback require new, separate approval.
+- Require specific evidence-based Git commit subjects **and informative bodies** recording what changed in that commit, sources, dates, limitations and documentation-only impact. Git history is the change log; no extra operations diary.
+- No branch management, PR creation/merges, force-push, history rewriting or repository administration.
+- Check current versions before writing, apply supported conditional updates and verify commit and final files afterward.
 - Stop on conflicts or tool/policy denials; do not evade restrictions.
-- Do not commit secrets or sensitive infrastructure details into public fixtures.
+- Do not commit secrets or sensitive infrastructure details into public fixtures or commit messages.
 
 ## After a detected conflict
 
