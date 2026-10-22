@@ -19,7 +19,12 @@ receives a token. MCP, CLI or both may be configured; this version offers no oth
 
 During setup, step 1 of "Repository discovery and evidence" does not apply: no repository is
 enumerated, searched or read until the user names one, and a repository the user excludes is never
-read — not for diagnostics, not as an example, not as a substitute.
+read — not for diagnostics, not as an example, not as a substitute. A verified binding stored by a
+previous run counts as the user having named that repository, and ordinary maintenance uses it
+without re-running setup.
+
+A stored binding is replaced only by an explicit rebind after a fresh verification, is never counted
+as write permission, and never overrides an exclusion.
 
 Everything below applies to documented-infrastructure work after setup. A request to read or
 maintain infrastructure records does **not** enter the setup flow.
