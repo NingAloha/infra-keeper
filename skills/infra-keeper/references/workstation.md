@@ -7,7 +7,7 @@ Use this reference when creating or maintaining a workstation record in the user
 Use a stable, unique, lowercase device ID (letters, digits and hyphens) rather than an operating-system name. A workstation record has this conventional layout:
 
 ```text
-devices/<device-id>/
+devices/workstations/<device-id>/
 ├── README.md
 ├── system/
 │   ├── hardware.md
@@ -81,4 +81,4 @@ Markdown describes the current documented state (facts, pending items, desires).
 
 Read the device README and relevant existing topics before proposing edits. Compare the new evidence with the dated baseline; do not silently discard uncertain or contradictory observations. Offer a precise diff and seek explicit approval **for every GitHub mutation** under the normal workflow. Do not change live device configuration as part of documentation maintenance.
 
-Never commit passwords, tokens, private keys, private proxy credentials or raw sensitive configurations. Omit unneeded public connection addresses and other sensitive infrastructure details. If an existing repository uses a different layout, respect it and propose migration separately rather than restructuring automatically.
+Never commit passwords, tokens, private keys, private proxy credentials or raw sensitive configurations. Omit unneeded public connection addresses and other sensitive infrastructure details. Use the canonical `devices/workstations/<device-id>/` path for new registrations. Do not create compatibility aliases or automatically migrate existing paths; any restructuring requires separate explicit approval.
