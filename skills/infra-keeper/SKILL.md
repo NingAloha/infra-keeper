@@ -42,11 +42,15 @@ Read [MCP instructions](references/github-mcp.md) or [CLI instructions](referenc
 
 ## Repository layout
 
-Use [Infrastructure repository layout](references/repository-layout.md) for the root README, independent `devices/{workstations,servers}/` and `services/` entities, host-owned optional `containers/` deployments and Service-owned domain/access records. Read the root index before following device links. Do not invent a server-specific topic schema or automatically migrate existing repository paths; treat unmigrated records as historical baselines until a separately approved migration.
+Use [Infrastructure repository layout](references/repository-layout.md) for the root README, independent `devices/{workstations,servers}/` and `services/` entities, host-owned optional `containers/` deployments and Service-owned domain/access records. Read the root index before following device links. For server records follow [Server documentation](references/server.md) and its Core/Conditional/Deep field coverage. Do not automatically migrate existing repository paths; treat unmigrated records as historical baselines until a separately approved migration.
 
 ## Workstation records
 
 For workstation documentation under `devices/workstations/<device-id>/`, follow [Workstation documentation](references/workstation.md) and its [Evidence-first audit practices](references/audit-lessons.md). Use stable physical-device IDs, keep documents limited to evidenced facts, pending items and desired state, and describe actual changes in Git history. For v0.1 workstation registration and maintenance, the agent gives the user read-only OS-specific instructions; **the user operates the device and returns selected evidence**. Never use host shell, filesystem, SSH or remote tools to inspect a workstation, even if available. For new registration, initialize applicable field checklists as `待审计`. For an existing workstation, use the three distinct workflows in that reference: routine audit, evidence-backed maintenance of reported changes, and needs-based recommendations followed by **user execution**, acceptance testing and documentation updates. Scan relevant GitHub documents for unresolved fields and guide user-run checks in small batches. This does not enable direct device audits or authorize any write.
+
+## Server records
+
+For `devices/servers/<device-id>/`, follow [Server documentation](references/server.md). Read existing device and linked Service records first, use short user-executed read-only SSH or cloud-console checks, separate config, effective state, health, accessibility and business acceptance, and never operate a live server directly. Service domain/TLS/ingress and business recovery belong under `services/<service-id>/`; host-owned container deployments belong under the server. This defines documentation and user-mediated verification, not runtime access or server mutations.
 
 ## Repository discovery and evidence
 
