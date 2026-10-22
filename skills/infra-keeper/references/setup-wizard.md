@@ -31,6 +31,45 @@ Setup is read-only, including when the user offers to let you "just test it":
 - Never treat this project's own repository as the user's infrastructure repository.
 - If a capability cannot be inspected, report `unverified`. Do not guess `ready` or `unavailable`.
 
+## Read scope (hard rule)
+
+Every read must clear the current rung of this ladder before it is made.
+
+| Stage | Reads allowed |
+| --- | --- |
+| S1 | host capability only: which MCP tools this session exposes, whether a local command may run |
+| S3 / S4 | additionally, identity only: which user each backend is authenticated as |
+| after S5 names a repository | that repository only: its metadata, its `main`, its contents |
+| at any time | nothing about a repository the user has not named |
+
+- Before the user names `OWNER/REPO`, do not enumerate repositories, list an account's repositories,
+  search code, or read any repository's contents, branches or metadata. "Discover accessible
+  repositories" is a rule for documentation work; it does not apply to this flow.
+- After binding, read only the bound repository. Do not read a second repository to compare, to
+  calibrate, or to demonstrate that the first one is reachable.
+- If the user names a repository as off-limits, record it as excluded and never read it again — not
+  for diagnostics, not as an example, not as a substitute target, not to check whether access works.
+- An ambiguous `404` is resolved by reasoning and by asking, not by reading more. Restate the exact
+  name the user gave, restate which identity is authenticated, and ask them to confirm. Reading some
+  other repository to infer the cause is prohibited.
+- A failed read is never a reason to read something else.
+- If the flow needs an answer and no interactive channel exists, stop and say which question is
+  missing. Do not pick a default repository, and do not read anything to compensate for the missing
+  answer.
+
+## Language
+
+Answer in the language the user is using.
+
+1. An explicit user statement wins for the rest of the flow: "reply in Chinese", `用英文回答`.
+2. Otherwise use the language of the request that started setup: a Chinese trigger gets Chinese
+   guidance, an English trigger gets English guidance.
+3. Do not infer a language from the user's profile, memory, other sessions, or documents they wrote
+   earlier.
+
+Language changes wording only. States, verdicts, safety rules and refusal behaviour stay identical
+in both languages.
+
 ## States
 
 | State | Purpose | Exit |
@@ -87,7 +126,8 @@ for an *operation*, never a fallback chain for a *denial*; see "Denials and swit
 1. If the host exposes no GitHub MCP tool and the tool list cannot be inspected, record `unverified`
    and state that inspection was impossible. If inspection worked and found no such tool, record
    `unavailable`.
-2. If tools exist, verify identity only: current user. A `401` records `unauthenticated`.
+2. If tools exist, verify identity only: current user. A `401` records `unauthenticated`. Do not
+   read any repository at this stage; see "Read scope".
 3. When the backend is not configured, guide — do not configure it for the user:
    - Hosted server endpoint: `https://api.githubcopilot.com/mcp/`.
    - Least privilege is a fine-grained PAT scoped to the target repository with **Contents: Read**
@@ -143,7 +183,8 @@ signed in, the token is not scoped to that repository, the repository is private
 this identity, or an organization requires SSO authorization. Because a 404 cannot separate these,
 record `unverified` and give the checks that would resolve it: confirm the exact `OWNER/REPO`,
 confirm the signed-in account, confirm the token's repository selection, check organization SSO, and
-try the other already-configured backend **as a separate read** — never as a retry of a denied write.
+try the other already-configured backend **as a separate read of the bound repository** — never as a
+retry of a denied write, and never against a different repository.
 
 **Partial success is a normal outcome.** With two backends selected, one may be `ready` and the other
 `insufficient-permissions`. Report both honestly. If at least one selected backend completes read
