@@ -67,8 +67,8 @@ The host-level security, network and resource fields must work for VPS, VM, bare
 ### `system/security.md`: server access and host protections
 
 - **Core:** SSH server enabled/listening state, authentication/privilege policy **summaries without credential material**, user privilege categories, updates, host security control state, backup/recovery prerequisites.
-- **Conditional:** SSH password/root-login policy, sudo boundaries, credential/secret storage ownership, systemd service identities, file/directory permissions of sensitive config (metadata only), auditing/journal retention, security update policy.
-- **Deep:** systemd unit hardening, sensitive path ownership drift, targeted access-control tests, intrusion/incident triage. Do not print `/etc/shadow`, SSH keys, service env, authorization tokens, TLS private keys or complete private config. Lack of permission to read a protected path **does not prove the file is absent**.
+- **Conditional:** read-only summaries of existing SSH authentication and administrative-access settings (including whether privileged remote login is allowed), current administrative role boundaries, service identities, existing sensitive-configuration file metadata, audit-log retention and security-update policy. This catalog does not authorize logging in with elevated privileges, changing accounts or altering access settings.
+- **Deep:** compare the existing service-unit security settings with documented expectations; review only non-secret ownership/permission metadata already supplied by the user; assess authorization boundaries using existing evidence and bounded, non-invasive observations; summarize incident indicators without attempting remediation. Never modify service units, file ownership, accounts or permissions as part of an audit. Do not print `/etc/shadow`, SSH keys, service environment, tokens, TLS private keys or private configuration. A permission-denied check **does not prove a protected file is absent**.
 
 ### `environment/packages.md`: OS package and update provenance
 
