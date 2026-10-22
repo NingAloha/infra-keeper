@@ -17,6 +17,10 @@ configuration, binds a target `OWNER/REPO`, and reports per-backend readiness.
 It never writes repository content, never changes host configuration or credentials, and never
 receives a token. MCP, CLI or both may be configured; this version offers no other backend.
 
+During setup, step 1 of "Repository discovery and evidence" does not apply: no repository is
+enumerated, searched or read until the user names one, and a repository the user excludes is never
+read — not for diagnostics, not as an example, not as a substitute.
+
 Everything below applies to documented-infrastructure work after setup. A request to read or
 maintain infrastructure records does **not** enter the setup flow.
 
