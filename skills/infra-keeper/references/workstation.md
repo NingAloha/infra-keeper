@@ -34,6 +34,27 @@ The README identifies the physical device, its responsibilities, a short overvie
 
 This layout works for macOS, Windows and Linux; platform-specific information belongs within the corresponding topic. Do not require an `operations.md` or changelog.
 
+## Initial audit coverage and field catalog
+
+For **new workstation registration**, create the applicable topic files with comprehensive candidate fields initially marked `待审计` (Pending audit). The checklist below derives from the existing Mac and Windows infrastructure records; it is a set of questions to verify, **not** a claim that any component exists on the new workstation.
+
+| Topic | Candidate fields to audit |
+| --- | --- |
+| `system/hardware.md` | Manufacturer, device model and model identifier; processor/SoC model, architecture, logical and physical core counts, performance/efficiency core counts where applicable; GPU model, GPU core count or video memory when relevant; RAM capacity/type; storage device model, medium, interface/protocol, total capacity and per-volume details as relevant. |
+| `system/os.md` | OS product/distribution, edition/release, version, build, kernel, architecture; computer/display name and hostname (redact if needed); update or pending-restart status where applicable. |
+| `environment/shell.md` | Current and default shells, versions and executable locations; terminal; profile/initialization files and whether present/loaded; PATH resolution and order; aliases, framework/theme/plugins; execution-policy state where applicable; only the presence/absence of proxy variables, never secret values. |
+| `environment/package-managers.md` | Each applicable package and version manager, its executable path, version, installation prefix or managed directories; installed package inventories and versions, explicit/top-level packages where supported; installed runtimes, selected/default version and configuration source; manager health checks and unverified capabilities. |
+| `environment/languages.md` | Per language: runtimes/interpreters, compilers, version and architecture, installation source, executable path, default PATH resolution and alternatives, associated package managers; SDKs, build tools and targets; verified startup, imports, compile/link/run, build/test capability as applicable. Candidate families informed by existing records include Python, Node.js/JavaScript, Rust, C/C++, Swift, Java and TeX/LaTeX; include only relevant families after applicability review. |
+| `environment/tools.md` | IDEs and editors, version/build, installation location, notable bundled build tools; Git/version control; relevant developer utilities, command accessibility and functionality, project run/build verification where provided. |
+| `environment/network.md` | Network client and proxy software names/versions, non-secret modes and status at observation time; system/WinHTTP and shell proxy summaries; VPN/TUN categories, DNS and routing summaries; SSH client/version, host-alias summaries and authentication test results; remote desktop methods and tested connectivity; unresolved network checks. Exclude secrets, raw configurations and unnecessary addresses. |
+| `containers.md` | Applicable container runtime name/version and each related container's global record link, purpose and relationship (local host, remote management, etc.). Do not assume containers exist; detailed container information belongs under `containers/`. |
+
+For each candidate field, initially write a meaningful `待审计` value, with no fabricated date or supporting evidence. Prefer a concise table per topic with columns such as `Parameter | Value | Evidence / checked at`. A `待审计` entry is an outstanding audit question, **not** a measured fact, a Desired goal or proof that a component is missing. For conditional items, first ask the user whether the capability or component applies.
+
+During each documentation-maintenance session for a device, scan the **repository documentation** for `待审计` fields and offer a small, prioritized batch of user-run checks. This is not a direct OS scan. Do not hijack a focused task: briefly summarize outstanding coverage and let the user defer it. When the user returns evidence, update the field with the observed value, source, date and validation level; when confirmed not applicable or not installed, record that distinction and propose removal of irrelevant placeholders. Never delete a field merely because a command produced no output or the user skipped a check. Every document deletion or update requires the normal explicit GitHub approval.
+
+Once a field has been resolved, do not retain redundant placeholders indefinitely. Keep real unresolved issues in Pending and user-stated goals in Desired. Git records what the documentation edit actually changed. This catalog covers workstations only and does not define a server/container internal schema.
+
 ## What a document says
 
 Documents describe only **Facts**, **Pending**, and **Desired**:
