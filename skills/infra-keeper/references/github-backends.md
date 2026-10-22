@@ -20,7 +20,10 @@ CLI, or both; no Local Workspace or Local Git backend exists.
 
 ## Capability negotiation
 
-1. Resolve repository `OWNER/REPO` from user context, never guess an unrelated repository.
+1. Resolve repository `OWNER/REPO` from user context — the user's selection, the repository
+   established in the conversation, or a stored InfraKeeper binding (`repository` + `branch`) for
+   this user — and never guess an unrelated repository. A binding narrows reads to one repository;
+   it never authorizes writes and never overrides an exclusion.
 2. Detect available GitHub MCP tools and check whether they can fulfill the specific operation.
 3. Otherwise, when local commands are permitted, check `gh --version` and `gh auth status` (never print tokens).
 4. State the selected backend and scope before operations. If changing backend during a workflow, disclose the reason.
