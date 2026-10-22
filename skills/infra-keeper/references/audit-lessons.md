@@ -57,3 +57,26 @@ During the exercise the user removed stale Docker/OrbStack-related symbolic link
 - Keep commit bodies detailed and scoped: exact changed claims, source/date, verification level, limitations, and what the agent did **not** operate. For multiple per-file commits in one logical task, describe partial scope accurately.
 - Pre-write version/concurrency checks and read-back verification still apply under task-scoped conversational approval.
 - Never publish secrets, private network destinations, SSH aliases, device serial numbers, proxy node names, raw configs, or unnecessary identifiers.
+
+## Server registration lessons: validation is a write gate
+
+The 2026-10-22 server registration in an isolated documentation Sandbox exposed process failures and their corrections. These are **workflow lessons only**, not a source of reusable host facts or permission to edit that Sandbox.
+
+1. **Fail closed before writing.** Prepare content and inspect evidence, references, sensitive data, target paths and authorization scope *before* any GitHub mutation. A validator that prints an error but allows a commit is not a gate. Mark blocking failures explicitly and abort the proposed write.
+2. **Resolve Markdown references from the source file.** Normalize each relative link against the containing Markdown file's directory, not the repository root. Accept only verified existing targets or an explicit, authorized set of files to be created in the same bounded task. Before declaring completion, every promised target must exist. Inspect both Markdown links and filename-like references in tables or inline code; no unresolved template tokens such as `<deployment-id>` may masquerade as concrete file paths.
+3. **Record the sampling method and truncation.** A command piped into `head`, a filtered `grep`, a PATH lookup or a partial screenshot proves only what it captured. A visible entry in a filtered `--state=enabled` listing can support that specific unit's state; missing entries in a truncated listing cannot support a negative conclusion. A Caddy action-line grep does not reveal named matcher definitions or loaded/effective policy.
+4. **Do not skip levels of evidence.** A saved configuration does not prove that the process loaded it; an open listener plus a cloud allow rule does not prove end-to-end reachability; a container reporting healthy does not prove application/client acceptance; the absence of a located backup job does not prove data is recoverable or irrecoverable. Name the observation time and specific test vantage.
+5. **Keep facts at one authoritative layer.** Device topics own host facts, host-scoped Container records own deployment facts, and Service topics own domains, client access, business dependencies and recovery evidence. Cross-reference instead of copying versions, mount paths and routes across summaries.
+6. **Classify unknowns precisely.** Distinguish `未取证` (not checked), `已检查范围内未发现` (not found within stated scope), `配置层观察` (configuration only), `运行态快照` (time-bounded observed state), and `已实测` (explicitly tested capability). A fact from an older audit remains historical evidence, not current validation.
+7. **Separate task acceptance from repository-wide health.** Validate all changed files and affected cross-links as a blocking check. A wider repository scan may discover old broken links outside the user's approved task; report those as out-of-scope findings, not a reason to silently edit unrelated devices. Keep in-scope and whole-repository results separate. Do not claim `0 broken links` for the whole repository if only the task scope passed.
+8. **Count the units you report.** Distinguish created/modified files, commits, correction commits, corrected issues and outstanding broken references. One commit can resolve multiple issue categories; these numbers need not match.
+
+### Validation disposition
+
+| Result | Meaning | Required behavior |
+| --- | --- | --- |
+| **BLOCK** | In-scope broken/unresolved link, invalid concrete path, unexpanded placeholder, unauthorized path, leaked secret, conflicting source/version, or a materially unsupported assertion | Do not perform the write. Correct the candidate or obtain separate approval as appropriate, then validate again. |
+| **WARN** | Existing unrelated broken links, explicitly recorded unknowns, historical-only evidence, or optional checks not performed | Preserve the limitation and report it separately. Never quietly expand scope. |
+| **PASS** | All applicable in-scope checks passed, and the write matches the approved scope | The authorized mutation may proceed, followed by commit and content read-back. |
+
+For batches with forward references, preflight the entire declared target set; allow a not-yet-created target *only* while it is explicitly part of that approved batch. The final batch audit must verify that every such target was actually created. If any required validation cannot run, report that fact rather than marking it PASS.
