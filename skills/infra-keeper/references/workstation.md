@@ -9,6 +9,7 @@ Use a stable, unique, lowercase device ID (letters, digits and hyphens) rather t
 ```text
 devices/workstations/<device-id>/
 ├── README.md
+├── containers.md       # optional container relationships index
 ├── system/
 │   ├── hardware.md
 │   └── os.md
@@ -22,6 +23,7 @@ devices/workstations/<device-id>/
 
 The README identifies the physical device, its responsibilities, a short overview, and links to available topic files. Place technical facts in the relevant topic rather than duplicating them in the README. Omit non-applicable topic files; do not create empty placeholders. Split a complex topic into extra files only when warranted.
 
+- `containers.md`: optional index of containers related to this workstation, each with a brief purpose, relationship and link to its global `containers/<container-id>/README.md` record. Containers can run on a workstation, on a server, or elsewhere; do not duplicate their detailed configuration in the workstation index. Do not assume every listed container runs locally.
 - `system/hardware.md`: model, CPU, memory, storage, GPU and relevant hardware.
 - `system/os.md`: operating system, version, build and architecture.
 - `environment/shell.md`: shell, terminal and relevant non-secret environment behavior.
@@ -52,7 +54,7 @@ When the user asks to register a new workstation:
 
 1. Resolve the already selected or verified bound documentation repository. Read its root inventory and existing workstation IDs; never guess another repository. Do not restart the GitHub setup wizard for a normal registration request.
 2. Establish whether this is a new physical device or an existing device evolving over time; obtain or propose a unique stable device ID and let the user confirm it. Ask for the operating-system family only if it is not already clear. Do not assume the agent host is the device being registered.
-3. Use the layout above as a **coverage checklist**, not a questionnaire that must all be completed at once. Identify what evidence is missing and give the user small, manageable batches of read-only instructions, appropriate to their OS. Include the purpose of each command or GUI step, what to copy back, and any privacy-sensitive fields to omit. Prefer straightforward built-in OS tools; do not ask the user to install diagnostic dependencies merely to fill a document.
+3. Use the layout above as a **coverage checklist**, not a questionnaire that must all be completed at once. Identify what evidence is missing, including relevant container relationships when applicable, and give the user small, manageable batches of read-only instructions, appropriate to their OS. Include the purpose of each command or GUI step, what to copy back, and any privacy-sensitive fields to omit. Prefer straightforward built-in OS tools; do not ask the user to install diagnostic dependencies merely to fill a document.
 4. The user runs the instructions themselves and shares selected terminal output, screenshots, or descriptions. Interpret only that supplied evidence. Record its source and date and distinguish user reports, detected components and demonstrated working behavior. Never claim to have executed a check.
 5. Populate supported Facts; put unresolved or deferred checks in Pending. Ask the user for Desired goals instead of inventing them. An incomplete record is acceptable: summarize coverage and the next useful, optional batch rather than blocking registration.
 6. Present the proposed device tree and the complete creation/update diff, along with uncertainty and privacy review. Ask for explicit GitHub write approval under the established workflow. After an authorized write, verify the resulting commit and files; otherwise stop with the proposal.
