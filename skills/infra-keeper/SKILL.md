@@ -42,7 +42,7 @@ Read [MCP instructions](references/github-mcp.md) or [CLI instructions](referenc
 
 ## Workstation records
 
-For workstation documentation under `devices/<device-id>/`, follow [Workstation documentation](references/workstation.md). Use stable physical-device IDs, keep documents limited to evidenced facts, pending items and desired state, and describe actual changes in Git history. This does not enable live device audits or authorize any write.
+For workstation documentation under `devices/<device-id>/`, follow [Workstation documentation](references/workstation.md). Use stable physical-device IDs, keep documents limited to evidenced facts, pending items and desired state, and describe actual changes in Git history. For v0.1 workstation registration and maintenance, the agent gives the user read-only OS-specific instructions; **the user operates the device and returns selected evidence**. Never use host shell, filesystem, SSH or remote tools to inspect a workstation, even if available. This does not enable direct device audits or authorize any write.
 
 ## Repository discovery and evidence
 
