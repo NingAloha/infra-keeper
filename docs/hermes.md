@@ -45,6 +45,39 @@ The secret must be stored outside the Git repository, using Hermes-supported pri
 
 The `hermes mcp test github` command connected and discovered tools. After changing MCP configuration, an existing Hermes chat session did not initially expose the tools, despite a successful Gateway registration log. Opening a **new session** resolved the issue in this test.
 
+## Setup wizard on this installation
+
+The setup wizard is entered in natural language. After installing or updating the plugin, a request
+such as **「初始化 InfraKeeper」** or **"Set up InfraKeeper"** routes to the
+[setup wizard](../skills/infra-keeper/references/setup-wizard.md) instead of the documentation
+workflow.
+
+What this host can and cannot observe:
+
+| Signal | Observable here | What it does not prove |
+| --- | --- | --- |
+| GitHub MCP tools exposed to the session | yes — they appear in the session's tool list | that the MCP server holds a valid identity, or that the identity can read a given repository |
+| Local shell and `gh` | yes — `gh --version` and `gh auth status` | repository permission; scopes printed by `gh auth status` are not a repository verdict |
+| Host credential stores, token contents, MCP server internals | no | anything about their state |
+
+Tool presence is not authentication, and authentication is not repository access. The wizard
+therefore reports one verdict per backend and per repository — `ready`, `unavailable`,
+`unauthenticated`, `insufficient-permissions` or `unverified` — rather than a single global
+"connected" state.
+
+MCP, CLI, or both may be configured, and each path reports its own read-only readiness. One working
+backend is enough to continue; the second can be added later.
+
+**Reload after an update.** For MCP configuration changes this installation *verified* that an
+existing chat session did not expose the newly configured tools until a new session was opened (see
+"GitHub MCP path" above). For plugin updates that change only Skill text, reloading the plugin is the
+expected step, and starting a new session is **advised** if the Skill description or references still
+look stale — that case has not been measured, so treat it as a recommendation rather than a result.
+
+**Wizard status.** The protocol is committed, but this installation has not run it as an end-to-end
+interactive acceptance test. Do not describe the wizard as fully working: the measured evidence in
+this document covers backend access over the CLI and MCP paths, not wizard behaviour.
+
 ## Evidence and limitations
 
 - [CLI execution evidence](../tests/hermes-smoke-test.md): approval-before-write and single-file creation on `main`.
@@ -52,6 +85,7 @@ The `hermes mcp test github` command connected and discovered tools. After chang
 - [MCP lifecycle evidence](../tests/integration/mcp-lifecycle.md): five-stage create / guarded update / stop-on-change / stale-version rejection / delete / restore test on `main`, MCP only.
 - [CLI lifecycle evidence](../tests/integration/cli-lifecycle.md): the same lifecycle run on `main` entirely through `gh api`, including a server-side rejection of a stale blob SHA.
 - Read/write tool discovery by itself does **not** establish access permission.
+- The [setup wizard](../skills/infra-keeper/references/setup-wizard.md) has no interactive acceptance run yet; its protocol is documented and committed, but untested end to end.
 - Multi-file commits, move/rename, and permission-denied behavior are **not** yet exercised on either backend. A stale-`sha` **delete** rejection is untested on both backends; only the matching case was run.
 - No actual cloud server, DNS, or device was contacted by any of these tests.
 
