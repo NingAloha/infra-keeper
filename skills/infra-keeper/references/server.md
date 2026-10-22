@@ -137,6 +137,17 @@ For each factual row prefer `Item | Observed value | Evidence and observed at | 
 - **Service admission:** a HTTP 200 on a public API and a HTTP 404 on one admin path prove only those two requests. For allowlisted admin entry, authorized-path 200 and unauthorized-path 403 demonstrate the tested differential but do not establish all bypasses are impossible.
 - **Certificate and deployment change:** distinguish former ACME/domain mode from newer direct-IP/private-cert or pinning mode, validate client capability after a change, and leave stale DNS, ports, restarts or certificate rollout Pending until verified.
 
+### Server registration preflight and acceptance
+
+Before a Server or linked Service batch is committed, apply the blocking [GitHub write gate](github-workflow.md) and [evidence-first audit lessons](audit-lessons.md). In addition to the field contracts above:
+
+- Distinguish command/output completeness from scope: truncated `systemctl` lists do not establish absence; separately visible filtered entries can establish those entries' presence. Action-line-only `grep` from a proxy configuration does **not** establish named matchers or effective authorization.
+- Model network evidence in distinct layers: socket listener, OS policy, cloud/provider ingress, actual externally tested route, and application result. Never promote `healthy` to application acceptance or an absent backup task in sampled schedulers to a recovery claim.
+- Validate every changed Markdown source's relative links against its own directory. Inspect inline-code/table path references as well as Markdown links; distinguish illustrative `<device-id>` placeholders in **schema references** from forbidden unexpanded deployment paths in **concrete device records**.
+- For batches, list approved forward-created files; require each promised target to exist before declaring the registration complete. An invalid in-scope link or unsupported material claim is **BLOCK** and prevents the next write.
+- Reconcile Device README, host topics, each host-owned Container and linked Service README/deployment/access/operations relations. Keep one authoritative home for versions, bind mounts, domain/TLS facts, and service recovery evidence.
+- Report **batch acceptance**, **optional repository-wide findings**, and **unverified runtime/business behavior** as separate results. Old unrelated dead links are WARN and require separate authorization to repair, not implicit scope expansion. Count commits and distinct corrected issues separately.
+
 ### Cross-document reconciliation
 
 Check before each logical task is declared complete:
