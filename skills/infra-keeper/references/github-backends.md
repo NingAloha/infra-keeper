@@ -7,6 +7,17 @@ InfraKeeper supports **two alternative GitHub operation backends**, not two simu
 | GitHub MCP | MCP-enabled agent host, connected identity, exposed repository tools | Hosted / desktop agent integrations |
 | GitHub CLI `gh` | Shell execution, installed `gh`, authenticated account | Local agents, terminals |
 
+## First-time setup
+
+A request to initialize InfraKeeper, configure or connect a backend, add a second backend, or
+re-verify a connection belongs to the [setup wizard](setup-wizard.md), not to this section. The
+wizard owns user onboarding and the read-only readiness verdict per backend, including the states,
+the probes and the configuration guidance. Do not restate those steps here.
+
+The negotiation below covers ordinary documentation work once at least one backend is usable. It
+keeps its own rules, and the wizard does not restate them. This version supports GitHub MCP, GitHub
+CLI, or both; no Local Workspace or Local Git backend exists.
+
 ## Capability negotiation
 
 1. Resolve repository `OWNER/REPO` from user context, never guess an unrelated repository.
