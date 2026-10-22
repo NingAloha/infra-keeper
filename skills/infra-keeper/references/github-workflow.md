@@ -52,6 +52,19 @@ Git history is the maintenance log. Do **not** add a separate running `operation
 - Prefer one coherent commit for a logical task when backend capabilities support atomic multi-file writes. Where a backend forces per-file commits, write individually accurate messages tied by a clear shared task description; never claim an atomic multi-file update. Report failures and partial completion.
 - Do not embed credentials, secret output, personal identifiers or unnecessary sensitive topology in a commit message; history is durable and may be public or hard to retract.
 
+## Mandatory pre-write validation gate
+
+This gate is part of every approved documentation transaction, not an optional audit report. Follow [audit lessons](audit-lessons.md) for evidence levels and BLOCK/WARN/PASS disposition.
+
+1. **Define scope:** enumerate every authorized target file and operation, including planned forward-reference targets. Read current versions and identify concurrent changes; verify authorization and repository/branch.
+2. **Validate the candidate before mutation:** inspect supported claims and timestamps, privacy/secrets, exact permitted paths, syntactic Markdown links and filename-like references (including inline code and table cells). Resolve relative paths from the *source Markdown directory*. Reject unexpanded concrete-path placeholders. A target not yet on GitHub is permissible only if it is in the explicit approved batch target set; by batch closure it must exist.
+3. **Enforce BLOCK:** any in-scope unresolved reference, missing promised target, unsupported material conclusion, unauthorized edit, secret exposure, or conflict aborts the write. Logging an error and continuing is forbidden. Repair candidate material within existing approval only when its meaning and scope remain authorized; otherwise request new approval.
+4. **Handle WARN separately:** report pre-existing failures outside task scope without silently changing them. Run a repository-wide check when practicable but never conflate its result with acceptance of changed/affected files. A known out-of-scope broken link is not permission to expand edits.
+5. **Commit, then verify:** only after PASS, submit the approved update with backend-supported version preconditions; read back committed contents, compare to the prepared candidate, and re-check changed/affected links. A failed post-write check is a reported partial failure, not grounds for an unauthorized repair.
+6. **Report exact units:** commits, changed files, correction commits, corrected issues and remaining failures are distinct counts. Separate task validation, optional whole-repository validation and runtime/service acceptance.
+
+A pre-write local or agent-side check never supplies a server-side concurrency guarantee. Continue using the conditional-update/conflict rules below.
+
 ## Execute approved change
 
 1. Re-read the current `main` state and relevant file versions to avoid overwriting concurrent edits.
