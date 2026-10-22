@@ -34,6 +34,8 @@ The README identifies the physical device, its responsibilities, a short overvie
 
 This layout works for macOS, Windows and Linux; platform-specific information belongs within the corresponding topic. Do not require an `operations.md` or changelog.
 
+For evidence grading, state-versus-configuration verification, contradiction handling, user-directed audit slimming, cleanup acceptance and audit closure, read [Evidence-first audit practices](audit-lessons.md). These practices apply to all workstation maintenance flows; they do not supply device-specific facts.
+
 ## Initial audit coverage and field catalog
 
 For **new workstation registration**, create the applicable topic files with comprehensive candidate fields initially marked `待审计` (Pending audit). The checklist below derives from the existing Mac and Windows infrastructure records; it is a set of questions to verify, **not** a claim that any component exists on the new workstation.
