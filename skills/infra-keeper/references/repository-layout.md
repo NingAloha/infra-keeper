@@ -13,9 +13,9 @@ devices/
       <deployment-id>/README.md
   servers/<device-id>/
     README.md
-    system/                # server topic schema to be designed
-    environment/           # optional
-    network/               # optional
+    system/                # hardware.md, os.md, resources.md, security.md
+    environment/           # packages.md, runtimes.md (as applicable)
+    network/               # interfaces.md, firewall.md, connectivity.md (as applicable)
     containers/            # optional, deployments hosted on this server
       <deployment-id>/README.md
 services/
@@ -46,6 +46,6 @@ services/
 
 - Read the selected or verified bound repository's root index and relevant Device/Service READMEs before changing topic files. For cross-device, network or public ingress work, inspect every affected relationship and the owning Service's access record.
 - Existing repositories may have legacy `devices/server-02/`, `containers/` or `domains/routing.md` records. They remain historical/current baselines **until a separately approved migration**. Do not silently delete, move or treat them as absent. The new layout applies to new registrations and future approved migrations; no automatic compatibility aliases or automatic restructuring.
-- Do not invent a full server or cluster audit schema from this outline. Design it separately before initial server registration. No empty topic files merely to match a diagram.
+- Follow [server documentation](server.md) for the now-defined server topic structure, Core/Conditional/Deep field coverage, and safe audit workflow. The cluster/orchestrator schema remains undefined; do not invent one. No empty topic files merely to match a diagram.
 - An initial registration or migration uses a bounded GitHub write authorization; destructive moves/deletions/restructuring need separate explicit approval under the GitHub workflow.
 - Never infer live runtime health from documentation. Git commits describe documentation changes, not device or service operations. No secrets or unnecessary sensitive topology in files or commit messages.
