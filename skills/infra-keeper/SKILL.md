@@ -40,9 +40,13 @@ Read [GitHub backends](references/github-backends.md) first.
 
 Read [MCP instructions](references/github-mcp.md) or [CLI instructions](references/github-cli.md) according to the selected backend. A Skill supplies instructions; it cannot itself provision GitHub access or grant scopes.
 
+## Repository layout
+
+Use [Infrastructure repository layout](references/repository-layout.md) for the root README, `devices/workstations/`, `devices/servers/` and `domains/` structure. Read the root index before following device links. Do not invent a server-specific topic schema; do not implement legacy-path compatibility.
+
 ## Workstation records
 
-For workstation documentation under `devices/<device-id>/`, follow [Workstation documentation](references/workstation.md). Use stable physical-device IDs, keep documents limited to evidenced facts, pending items and desired state, and describe actual changes in Git history. For v0.1 workstation registration and maintenance, the agent gives the user read-only OS-specific instructions; **the user operates the device and returns selected evidence**. Never use host shell, filesystem, SSH or remote tools to inspect a workstation, even if available. This does not enable direct device audits or authorize any write.
+For workstation documentation under `devices/workstations/<device-id>/`, follow [Workstation documentation](references/workstation.md). Use stable physical-device IDs, keep documents limited to evidenced facts, pending items and desired state, and describe actual changes in Git history. For v0.1 workstation registration and maintenance, the agent gives the user read-only OS-specific instructions; **the user operates the device and returns selected evidence**. Never use host shell, filesystem, SSH or remote tools to inspect a workstation, even if available. This does not enable direct device audits or authorize any write.
 
 ## Repository discovery and evidence
 
