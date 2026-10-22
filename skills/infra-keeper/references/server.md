@@ -106,6 +106,49 @@ The host-level security, network and resource fields must work for VPS, VM, bare
 - **Conditional:** published/bound ports (loopback/public distinction), internal container networking, dependencies, persistent mounts/volumes, restart policy, resource constraints, health-check definition and observed status.
 - **Deep:** rolling or manual upgrade procedure, recovery of persistent storage, application verification independent of health, mapping changes after host migration. A container being `healthy` never substitutes for a service's API/client tests.
 
+## Per-file recording contracts
+
+The Core/Conditional/Deep catalog above determines **which questions** are worth asking. The contracts below determine **how answers are stored**, which file owns each answer, and the minimum evidence required. They add to—not replace—the existing field catalog.
+
+For each factual row prefer `Item | Observed value | Evidence and observed at | Verification boundary`. Record timezone or UTC for time-sensitive events. Use `待审计` only for applicable, unresolved questions; `未取证` for a specific important claim not yet supported; `不适用` only when applicability was established. Do not output raw config/secret data. A future Desired setting must never appear as a current fact.
+
+| Document | Suggested internal sections | Ownership and minimum validation |
+| --- | --- | --- |
+| `README.md` | Identity and role; device/topic index; linked services and host deployments; coverage and material unresolved risks | Identifiers and links only. All links must resolve; don't repeat version, endpoint and health details from topics. |
+| `system/hardware.md` | Provider/instance identity (redacted); allocation and observed hardware; attached storage; evidence limits | Separate provider advertised vCPU/RAM/disk from guest-reported hardware and capacities. Console screenshot is not guest-level verification. |
+| `system/os.md` | Distribution/kernel; host boot and clock; updates/reboot requirement; evidence timeline | Banner, package inventory, `uname`, boot history and update command are separate observations; infer neither current kernel nor successful reboot from package installation alone. |
+| `system/resources.md` | CPU/load; memory/swap; disks/filesystems; resource consumers; trends and limitations | Each measurement includes sample time and units; use snapshot or multi-sample qualifier. Avoid concluding memory leak/OOM from swap alone. |
+| `system/security.md` | Administrative access; effective controls; service identities and secret-path permissions; host audit/update policy; limits | SSH listener, login authentication, service accounts and protected file metadata are distinct facts. No secrets or gratuitous privilege escalation. |
+| `environment/packages.md` | Package managers; installed components/versions; update and pinning status; install provenance; package failures | Installed, selected, available and functioning are separate states. Historic install errors stay dated, not extrapolated to present. |
+| `environment/runtimes.md` | systemd/init; containers and compose runtime; native runtimes/reverse proxies; unit/config metadata; operator procedures | Distinguish unit enabled, active, loaded version, listening socket, clean start and tested operation. Runtime installed does not prove hosted containers. |
+| `network/interfaces.md` | Interfaces; v4/v6 roles; routing/resolvers; local listeners and bind scopes | Preserve protocol + port + bind address category (loopback, private, wildcard) with date. Do not confuse listener with external reachability. |
+| `network/firewall.md` | Host firewall engine/state; IPv4/IPv6 effective policy; provider ingress/egress; cross-layer exposure mismatches | Explicitly compare host listener, host policy, provider rule, external path. Report unknowns; absence of UFW does not imply absence of firewall. |
+| `network/connectivity.md` | Management access; host outbound checks; reachable transport samples; cross-device observed paths; reachability limits | Name vantage point, protocol and tested action; a single remote success doesn't prove all routes or uptime. Service URL/DNS/TLS semantics live in Service access. |
+| `containers/<deployment-id>/README.md` | Host and service owner; image/compose; ports/networks; volumes/persistence; lifecycle/health; resources and limitations | Health result must be container-specific; cross-reference business tests and backups in Service. Do not duplicate secret environment data. |
+
+### Topic-specific acceptance examples
+
+- **Hardware and OS:** corroborate guest-reported OS/kernel with read-only commands; distinguish cloud-console plan from memory actually visible to guest. Mark release/kernel changed by update only after actual observation.
+- **Resources:** collect a small snapshot of `free`/`df`/load and (when justified) limited process metrics; timestamp each. For outage diagnosis, use a narrow user-returned boot/journal excerpt plus historical comparisons, **not** broad secret-bearing log dumps or assumed OOM.
+- **Administrative security:** record SSH service/listener and basic access status without reading private keys or passwords. A permission-denied `test -e` in a protected directory cannot establish missing config; ask for a targeted metadata-only privileged check only when justified.
+- **Package/runtime:** identify installed tool binary/version, active systemd unit, configuration path existence/permissions and listener separately. `systemctl active` alone is not a passing API test; a valid config file on disk is not proof the process loaded it.
+- **Network:** compare TCP/UDP and IPv4/IPv6 separately across effective host firewall and provider console. If an application listens on UDP 443 but no provider UDP 443 rule is shown, record a possible gap instead of silently considering it reachable.
+- **Container:** use inspected container state and health as one layer; only a Service-level test establishes that the actual application endpoint performs the tested behavior.
+- **Service admission:** a HTTP 200 on a public API and a HTTP 404 on one admin path prove only those two requests. For allowlisted admin entry, authorized-path 200 and unauthorized-path 403 demonstrate the tested differential but do not establish all bypasses are impossible.
+- **Certificate and deployment change:** distinguish former ACME/domain mode from newer direct-IP/private-cert or pinning mode, validate client capability after a change, and leave stale DNS, ports, restarts or certificate rollout Pending until verified.
+
+### Cross-document reconciliation
+
+Check before each logical task is declared complete:
+
+1. README links to every existing server topic and hosted container deployment, and refers to actual linked Services rather than a fabricated global service inventory.
+2. `hardware.md` allocated memory/disk and `resources.md` guest-observed memory/disk have consistent units and deliberately different meanings; `os.md` records observed active kernel, not just installed package version.
+3. `runtimes.md` installed container engine and `containers/` hosted instances agree. A native systemd business service must link to its independent Service without inventing a container.
+4. `interfaces.md` listener protocol/binding, `firewall.md` host/cloud ingress and `connectivity.md` actual test vantage do not claim the same proof level.
+5. Host config/runtime facts and Service `deployment.md` agree on which Device actually hosts each component. Domains, DNS, external TLS/route and client-facing URLs appear under Service `access.md`, **not** the server's host-network facts as a duplicate source.
+6. Container health, local app health and client/business acceptance are independently evidenced. Database data protection and restoration results live in Service `operations.md`; cloud snapshot status belongs to Device.
+7. Check last-minute corrective findings against earlier README summaries and topic descriptions; maintain current facts while preserving history in commits, not by dumping an audit transcript into Markdown.
+
 ## Related Service documentation
 
 Create a Service record when the workload has a distinct purpose or lifecycle; do not force every host daemon into a user-facing Service. One host may run several Services; one Service can span devices and instances.
