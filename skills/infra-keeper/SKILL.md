@@ -73,6 +73,12 @@ Follow [GitHub workflow](references/github-workflow.md):
 - Stop on conflicts or tool/policy denials; do not evade restrictions.
 - Do not commit secrets or sensitive infrastructure details into public fixtures or commit messages.
 
+## Documentation validation is a mandatory write gate
+
+For any approved documentation create/update, execute the **pre-write BLOCK/WARN/PASS gate** in [GitHub workflow](references/github-workflow.md) and the [audit lessons](references/audit-lessons.md). Prepare the complete candidate, establish its evidence level, check for secrets, verify approved paths, resolve Markdown references against each source file directory, and reject unresolved concrete-path placeholders. If an in-scope check fails, **abort the write**; a printed warning is not sufficient. A forward link may target an explicitly approved file pending creation in the same batch, but must resolve by final acceptance.
+
+Do not silently repair out-of-scope findings from a repository-wide scan. Report task-scoped link/relationship acceptance separately from repository-wide health and runtime/service validation. Once authorized content passes preflight, apply conditional version safeguards, write to `main`, read back the commit/files, and report distinct counts for files, commits, correction commits and corrected issues. Never treat client preflight as an atomic GitHub concurrency lock.
+
 ## After a detected conflict
 
 A change to an affected file's version between the approved baseline and the pre-write check is a conflict. A change to branch HEAD also requires reviewing its impact before proceeding.
