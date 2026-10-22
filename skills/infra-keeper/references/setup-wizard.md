@@ -164,6 +164,9 @@ Ask for `OWNER/REPO`. A repository URL or an SSH remote may be accepted and redu
 If the user does not want to bind a repository yet, stop after S3/S4 with connection-level status
 and say plainly that no repository has been verified.
 
+If a binding is already stored, show it here and ask whether to re-verify it or to rebind; see
+"Repository binding (persisted)".
+
 ## S6 — repository verification
 
 Only after S5, and once per selected backend. The minimal probe is repository metadata plus a root
@@ -190,6 +193,45 @@ retry of a denied write, and never against a different repository.
 `insufficient-permissions`. Report both honestly. If at least one selected backend completes read
 verification of the bound repository, state that setup is usable on that backend and that the other
 remains unresolved; the user can continue with the verified backend.
+
+## Repository binding (persisted)
+
+A user has one default infrastructure profile repository, maintained over time; devices are many.
+
+Persist a binding only after S6 returned `ready` on at least one selected backend. A repository whose
+selected backends all returned `unverified` is not stored.
+
+A binding is trusted only with that provenance: the user picked the repository in a setup run, and at
+least one selected backend reached `ready` on it. A repository name that merely appears in host
+memory, in an earlier conversation, or in notes is **not** a binding — ask the user to confirm it,
+and verify it through S5/S6 before use.
+
+Keep the record minimal: `repository` and `branch`. Verification time and per-backend status may be
+kept as historical observations, never as a permission.
+
+- `repository`: `OWNER/REPO`
+- `branch`: the branch that was verified, normally `main`
+- optional: `verified_at`, `verified_by`, `status`
+
+Store it with whatever durable facility the host offers — host memory, host configuration, a
+host-managed store. Do not write it into the repository, and do not depend on a vendor-specific
+memory API. If the host has no durable store, say so and ask for `OWNER/REPO` each session instead.
+
+Reuse: ordinary maintenance tasks use the bound repository directly, without re-running S1–S7 and
+without asking for the repository again. The user's current explicit selection, and any exclusion,
+always override the stored binding. When the user explicitly asks to initialize or re-verify, show
+the stored binding and re-run S6 against it.
+
+Rebind: only on an explicit request. The new repository replaces the old binding only after a fresh
+S6 verdict of `ready` on at least one backend; until then the old binding stays as it was.
+
+Failure: if a read of the bound repository returns `401`, `403`, `404` or times out, report the
+error as it stands and leave the binding unchanged. The failure may be kept as a historical
+observation, but that note must not shorten, filter or soften the report you give the user. Do not
+switch to another repository, and do not delete the binding without an instruction.
+
+A binding narrows access; it never widens it. An excluded repository stays unreadable even if bound,
+and a binding is not permission to write — every write keeps its own per-change approval.
 
 ## S7 — readiness report
 
