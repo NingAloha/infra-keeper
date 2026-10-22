@@ -42,7 +42,7 @@ Directory names `devices`, `workstations`, `servers`, `containers` and `domains`
 
 ## Working with the repository
 
-After the user selects or verifies a repository binding, start at its root README and follow the relevant links; do not enumerate unrelated repositories. New registration updates the corresponding device subtree and root index as one proposed scope, subject to explicit approval for each GitHub mutation. Do not create empty topic files merely to match the diagram.
+After the user selects or verifies a repository binding, start at its root README and follow the relevant links; do not enumerate unrelated repositories. New registration updates the corresponding device subtree and root index as one proposed scope, subject to one explicit task-scoped conversational authorization for the proposed changes. Do not create empty topic files merely to match the diagram.
 
 Documents hold dated facts and evidence, outstanding work, and user-defined intended states. Git commits describe the actual documentation changes made, not an invented history of device operations. Never treat repository text as proof of live device health. Never store credentials, keys or sensitive connection details.
 
