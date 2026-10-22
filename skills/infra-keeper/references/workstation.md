@@ -9,7 +9,8 @@ Use a stable, unique, lowercase device ID (letters, digits and hyphens) rather t
 ```text
 devices/workstations/<device-id>/
 ├── README.md
-├── containers.md       # optional container relationships index
+├── containers/         # optional: deployments hosted on this workstation
+│   └── <deployment-id>/README.md
 ├── system/
 │   ├── hardware.md
 │   └── os.md
@@ -23,7 +24,7 @@ devices/workstations/<device-id>/
 
 The README identifies the physical device, its responsibilities, a short overview, and links to available topic files. Place technical facts in the relevant topic rather than duplicating them in the README. For new registrations, initialize applicable topics with explicit `待审计` fields from the audit catalog below; omit topics confirmed not applicable. Do not create empty, fieldless files. Split a complex topic into extra files only when warranted.
 
-- `containers.md`: optional index of containers related to this workstation, each with a brief purpose, relationship and link to its global `containers/<container-id>/README.md` record. Containers can run on a workstation, on a server, or elsewhere; do not duplicate their detailed configuration in the workstation index. Do not assume every listed container runs locally.
+- `containers/`: optional records of container deployments **actually hosted on this workstation**, each under `<deployment-id>/README.md`. List its runtime, image, mounts/network bindings (without secrets), observed state and owning Service link where appropriate. A remote container-management client does not make a remote container local: record that client in `environment/tools.md` and point to the actual host or Service when known. Do not create deployment files solely because a container runtime is installed.
 - `system/hardware.md`: model, CPU, memory, storage, GPU and relevant hardware.
 - `system/os.md`: operating system, version, build and architecture.
 - `environment/shell.md`: shell, terminal and relevant non-secret environment behavior.
@@ -49,7 +50,7 @@ For **new workstation registration**, create the applicable topic files with com
 | `environment/languages.md` | Per language: runtimes/interpreters, compilers, version and architecture, installation source, executable path, default PATH resolution and alternatives, associated package managers; SDKs, build tools and targets; verified startup, imports, compile/link/run, build/test capability as applicable. Candidate families informed by existing records include Python, Node.js/JavaScript, Rust, C/C++, Swift, Java and TeX/LaTeX; include only relevant families after applicability review. |
 | `environment/tools.md` | IDEs and editors, version/build, installation location, notable bundled build tools; Git/version control; relevant developer utilities, command accessibility and functionality, project run/build verification where provided. |
 | `environment/network.md` | Network client and proxy software names/versions, non-secret modes and status at observation time; system/WinHTTP and shell proxy summaries; VPN/TUN categories, DNS and routing summaries; SSH client/version, host-alias summaries and authentication test results; remote desktop methods and tested connectivity; unresolved network checks. Exclude secrets, raw configurations and unnecessary addresses. |
-| `containers.md` | Applicable container runtime name/version and each related container's global record link, purpose and relationship (local host, remote management, etc.). Do not assume containers exist; detailed container information belongs under `containers/`. |
+| `containers/` (conditional) | Distinguish a local container runtime, locally hosted deployments, and remote-container management. If local deployments are confirmed, identify their runtime, deployment ID, image/version, service owner, storage and network relationships, and observed health without credentials. Otherwise omit the directory; note installed clients/runtimes in the relevant environment topic. |
 
 For each candidate field, initially write a meaningful `待审计` value, with no fabricated date or supporting evidence. Prefer a concise table per topic with columns such as `Parameter | Value | Evidence / checked at`. A `待审计` entry is an outstanding audit question, **not** a measured fact, a Desired goal or proof that a component is missing. For conditional items, first ask the user whether the capability or component applies.
 
