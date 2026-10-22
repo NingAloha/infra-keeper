@@ -51,7 +51,7 @@ For **new workstation registration**, create the applicable topic files with com
 
 For each candidate field, initially write a meaningful `待审计` value, with no fabricated date or supporting evidence. Prefer a concise table per topic with columns such as `Parameter | Value | Evidence / checked at`. A `待审计` entry is an outstanding audit question, **not** a measured fact, a Desired goal or proof that a component is missing. For conditional items, first ask the user whether the capability or component applies.
 
-During each documentation-maintenance session for a device, scan the **repository documentation** for `待审计` fields and offer a small, prioritized batch of user-run checks. This is not a direct OS scan. Do not hijack a focused task: briefly summarize outstanding coverage and let the user defer it. When the user returns evidence, update the field with the observed value, source, date and validation level; when confirmed not applicable or not installed, record that distinction and propose removal of irrelevant placeholders. Never delete a field merely because a command produced no output or the user skipped a check. Every document deletion or update requires the normal explicit GitHub approval.
+During each documentation-maintenance session for a device, scan the **repository documentation** for `待审计` fields and offer a small, prioritized batch of user-run checks. This is not a direct OS scan. Do not hijack a focused task: briefly summarize outstanding coverage and let the user defer it. When the user returns evidence, update the field with the observed value, source, date and validation level; when confirmed not applicable or not installed, record that distinction and propose removal of irrelevant placeholders. Never delete a field merely because a command produced no output or the user skipped a check. Every document deletion or update follows the shared conversation-scoped GitHub authorization policy; deletions and scope expansions require separate approval.
 
 Once a field has been resolved, do not retain redundant placeholders indefinitely. Keep real unresolved issues in Pending and user-stated goals in Desired. Git records what the documentation edit actually changed. This catalog covers workstations only and does not define a server/container internal schema.
 
@@ -67,7 +67,7 @@ These are semantic categories, not mandatory headings. Omit empty sections; use 
 
 ## User-mediated workstation interaction (v0.1)
 
-**The agent does not operate or inspect a workstation directly.** This remains true even if the host exposes terminal, local files, SSH, remote execution, automation, or other operating-system tools. Such tools must not be used for workstation inventory or diagnosis in this version. GitHub tools are for reading and, after separate approval, updating the documentation repository only. The user runs commands, navigates GUI screens, and decides what results to share.
+**The agent does not operate or inspect a workstation directly.** This remains true even if the host exposes terminal, local files, SSH, remote execution, automation, or other operating-system tools. Such tools must not be used for workstation inventory or diagnosis in this version. GitHub tools are for reading and, after an explicit, sufficiently scoped conversational authorization, updating the documentation repository only. The user runs commands, navigates GUI screens, and decides what results to share.
 
 ### First registration
 
@@ -80,11 +80,39 @@ When the user asks to register a new workstation:
 5. Populate supported Facts; put unresolved or deferred checks in Pending. Ask the user for Desired goals instead of inventing them. An incomplete audit is acceptable: keep applicable fields marked `待审计`, summarize coverage and the next useful, optional batch rather than blocking registration.
 6. Present the proposed device tree and the complete creation/update diff, along with uncertainty and privacy review. Ask for explicit GitHub write approval under the established workflow. After an authorized write, verify the resulting commit and files; otherwise stop with the proposal.
 
-### Maintenance of an existing workstation
+### Routine audit of an existing workstation
 
-Read the device README and only the relevant topic files. For a question about installed software, a reported configuration change, an unfinished task, or a desired outcome, provide targeted user-run verification steps **only when evidence is needed**. Do not re-collect the entire device inventory. Reconcile the user's supplied results with prior dated Facts, Pending and Desired; propose only the changes actually supported, and obtain separate write approval.
+Trigger: the user asks to audit/check a device, continue outstanding verification, or review documentation quality. This is **not** a new registration.
 
-For questions about what remains unfinished, summarize documented Pending entries with their original evidence dates. Do not imply any item has been freshly checked.
+1. Resolve the bound repository and device ID; read the device README and relevant topic documents. Scan for `待审计` and `未取证`, stale dated facts, cross-file inconsistencies and prior unresolved questions. Do **not** treat all dated facts as automatically invalid.
+2. Prioritize based on the user's request, materiality, risk and age of evidence. For a broad audit offer small topic-sized batches; for a focused request inspect only the necessary topics. Report the existing baseline separately from what has been checked today.
+3. Give the user safe, read-only OS-specific commands or GUI steps, including what outputs to share and what to redact. **Never execute device commands yourself**, even if the agent host is the same device. Avoid routine network-reaching checks such as `brew outdated`, and never presume CLI discovery covers every possible installation path.
+4. Compare user-returned evidence with the baseline field by field. Distinguish command discoverability, installation evidence, version output and functional verification. For shell aliases/functions, `command -v` may return a name rather than an absolute executable path; use an appropriate user-run disambiguation step before claiming a path.
+5. Preserve supported facts, update verified values and observation dates, leave unexplained changes Pending, and remove non-applicable placeholders only after appropriate evidence and authorization. Do not quietly replace contradictory evidence with a guess.
+6. Present a compact audit result: newly verified, changed, unchanged, unresolved, and proposed documentation edits. Apply only user-authorized GitHub edits under the shared workflow. An audit need not produce a commit.
+
+### Maintenance after a reported device change
+
+Trigger: the user says a package was installed/updated/uninstalled, a setting was changed, a component was replaced, or some infrastructure state changed.
+
+1. Read the documented baseline and the affected topic(s), plus directly related device or cross-device records if the change affects them. Do not restart registration or re-collect the whole inventory.
+2. Treat the report as a user report until the user supplies suitable supporting evidence. Offer the smallest relevant user-run verification, including functionality or connectivity where necessary.
+3. Compare before/after values. Record **observed current state** and evidence date, not an invented change date; if execution time is only user-reported, say so. Preserve meaningful gaps and unexpected side effects as Pending.
+4. Update linked records consistently (for example, runtime version in both language and package-manager records), and avoid unrelated formatting or cleanup.
+5. Confirm documentation write scope in the conversation once; if the user's explicit request already authorizes the bounded change, do not ask again merely because a diff was prepared. Commit and verify with detailed history, or leave a proposed diff when authorization or evidence is insufficient.
+
+### User-requested solution, guided execution and acceptance
+
+Trigger: the user describes a goal such as setting up a toolchain, resolving a conflict, improving a workstation workflow, or configuring a new service/client.
+
+1. **Understand the outcome** and material constraints without re-asking facts already in the repository. Read the device baseline, relevant software/network records, resource limits and dependencies. For inter-device changes read both sides; for domains/ingress read shared routing records.
+2. **Recommend a concrete plan** that reuses current infrastructure, compares meaningful alternatives only when relevant, names expected results, compatibility and conflicts, risks, prerequisites and rollback for potentially disruptive steps. Distinguish proposal/Desired from existing Facts.
+3. **Guide, do not operate:** offer small ordered commands or GUI instructions for **the user** to execute. Unlike audit commands, these may intentionally install software or change settings, but label every mutating command and its consequences clearly; obtain the user's explicit decision to proceed with risky device changes. Do not use host tools, shell, SSH or remote execution to perform workstation/device mutations.
+4. **Interpret user-returned results** after each stage. A zero exit code or a command being issued is not sufficient proof of the intended outcome. Request appropriate independent functional verification and verify no material collateral failure where feasible.
+5. **Document acceptance:** when successful, update the actual observed Facts, evidence and validation scope, close supported Pending entries, and reconcile Desired. On partial success or failure, record only observed state and remaining Pending; do not mark the intended state completed or invent an installation.
+6. **Commit authorized documentation changes** via the shared GitHub workflow. User authorization to perform a device operation is distinct from authorization to change the GitHub repository. A user's request to **record** the verified result can authorize the bounded documentation change without redundant approval.
+
+For all three maintenance modes: keep a device-maintenance task scoped to the selected repository and paths, summarize unresolved audit candidates without hijacking a focused request, and do not use repository documentation as a substitute for a live measurement.
 
 ### Instruction safety and pacing
 
@@ -102,6 +130,6 @@ A device ID follows continuity of the physical workstation. Incremental repairs,
 
 Markdown describes the current documented state (facts, pending items, desires). Git commits describe **only what actually changed in that commit**. Make clear whether the change was to documentation or to a device: a documentation edit is not evidence that an installation, repair or migration happened. Do not duplicate a running changelog in the topic documents or commit body.
 
-Read the device README and relevant existing topics before proposing edits. Compare the new evidence with the dated baseline; do not silently discard uncertain or contradictory observations. Offer a precise diff and seek explicit approval **for every GitHub mutation** under the normal workflow. Do not change live device configuration as part of documentation maintenance.
+Read the device README and relevant existing topics before proposing edits. Compare the new evidence with the dated baseline; do not silently discard uncertain or contradictory observations. Offer a precise diff or change summary and follow the shared GitHub authorization workflow; do not repeat an approval request when the conversation already explicitly authorized that exact bounded change. Do not change live device configuration as part of documentation maintenance.
 
 Never commit passwords, tokens, private keys, private proxy credentials or raw sensitive configurations. Omit unneeded public connection addresses and other sensitive infrastructure details. Use the canonical `devices/workstations/<device-id>/` path for new registrations. Do not create compatibility aliases or automatically migrate existing paths; any restructuring requires separate explicit approval.
