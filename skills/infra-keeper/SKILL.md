@@ -42,7 +42,7 @@ Read [MCP instructions](references/github-mcp.md) or [CLI instructions](referenc
 
 ## Repository layout
 
-Use [Infrastructure repository layout](references/repository-layout.md) for the root README, `devices/workstations/`, `devices/servers/` and `domains/` structure. Read the root index before following device links. Do not invent a server-specific topic schema; do not implement legacy-path compatibility.
+Use [Infrastructure repository layout](references/repository-layout.md) for the root README, independent `devices/{workstations,servers}/` and `services/` entities, host-owned optional `containers/` deployments and Service-owned domain/access records. Read the root index before following device links. Do not invent a server-specific topic schema or automatically migrate existing repository paths; treat unmigrated records as historical baselines until a separately approved migration.
 
 ## Workstation records
 
@@ -53,7 +53,7 @@ For workstation documentation under `devices/workstations/<device-id>/`, follow 
 1. Use the user's explicit repository selection or the repository established in context. Otherwise discover accessible repositories; ask when ambiguous.
 2. Work with `main`; do not create a branch to work around a missing or protected `main`.
 3. Read the root inventory and relevant device/service README before specific system, network, operations, or service records.
-4. For inter-device requests read both endpoints; for public ingress, DNS, or domain tasks also read the routing documentation.
+4. For inter-device requests read both endpoints and linked Service records; for public ingress, DNS, TLS or domain tasks read the owning Service's `access.md` and affected devices. Consult legacy `domains/routing.md` only where it still exists as an unmigrated record; never assume it is the new canonical domain layout.
 5. Distinguish **documented baseline**, **user report**, **timestamped live observation supplied by an authorized source**, and **unknown**. Repository text is never proof of present runtime health.
 
 ## Single-branch permissions
