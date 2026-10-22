@@ -1,11 +1,24 @@
 ---
 name: infra-keeper
-description: Maintain documented infrastructure using GitHub MCP or GitHub CLI, including repository discovery, evidence review, safe change proposals and explicitly approved commits to main.
+description: Initialize InfraKeeper, configure or re-verify GitHub access (初始化、配置 GitHub 后端、重新验证连接), and maintain documented infrastructure using GitHub MCP or GitHub CLI, including repository discovery, evidence review, safe change proposals and explicitly approved commits to main.
 ---
 
 # InfraKeeper
 
 InfraKeeper helps an agent maintain a **versioned infrastructure documentation repository**. This foundation covers GitHub documentation operations, **not** live infrastructure changes.
+
+## Setup (first run)
+
+When the user asks to initialize InfraKeeper, configure or connect a GitHub backend, add a second
+backend, or re-verify an existing connection, read [setup wizard](references/setup-wizard.md) and
+follow it. That flow is read-only: it inspects host capabilities, guides MCP and/or CLI
+configuration, binds a target `OWNER/REPO`, and reports per-backend readiness.
+
+It never writes repository content, never changes host configuration or credentials, and never
+receives a token. MCP, CLI or both may be configured; this version offers no other backend.
+
+Everything below applies to documented-infrastructure work after setup. A request to read or
+maintain infrastructure records does **not** enter the setup flow.
 
 ## Select a GitHub backend
 
