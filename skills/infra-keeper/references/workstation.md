@@ -13,7 +13,8 @@ devices/workstations/<device-id>/
 │   └── <deployment-id>/README.md
 ├── system/
 │   ├── hardware.md
-│   └── os.md
+│   ├── os.md
+│   └── security.md
 └── environment/
     ├── shell.md
     ├── package-managers.md
@@ -27,6 +28,7 @@ The README identifies the physical device, its responsibilities, a short overvie
 - `containers/`: optional records of container deployments **actually hosted on this workstation**, each under `<deployment-id>/README.md`. List its runtime, image, mounts/network bindings (without secrets), observed state and owning Service link where appropriate. A remote container-management client does not make a remote container local: record that client in `environment/tools.md` and point to the actual host or Service when known. Do not create deployment files solely because a container runtime is installed.
 - `system/hardware.md`: model, CPU, memory, storage, GPU and relevant hardware.
 - `system/os.md`: operating system, version, build and architecture.
+- `system/security.md`: system protection and effective security state: disk encryption, built-in protection features, application firewall status versus saved policy, remote-access services, startup/background items and backup target status as relevant. Never request recovery keys or secrets.
 - `environment/shell.md`: shell, terminal and relevant non-secret environment behavior.
 - `environment/package-managers.md`: installed package managers and their observed state.
 - `environment/languages.md`: runtimes, compilers, SDKs and build toolchains.
@@ -45,6 +47,7 @@ For **new workstation registration**, create the applicable topic files with com
 | --- | --- |
 | `system/hardware.md` | Manufacturer, device model and model identifier; processor/SoC model, architecture, logical and physical core counts, performance/efficiency core counts where applicable; GPU model, GPU core count or video memory when relevant; RAM capacity/type; storage device model, medium, interface/protocol, total capacity and per-volume details as relevant. |
 | `system/os.md` | OS product/distribution, edition/release, version, build, kernel, architecture; computer/display name and hostname (redact if needed); update or pending-restart status where applicable. |
+| `system/security.md` | OS-specific security controls and observed enablement (macOS FileVault/SIP/Gatekeeper, Windows BitLocker/Defender or Linux equivalents as applicable); effective firewall state distinguished from policy; remote login and sharing exposure; startup/background services and extensions; system-level backup status. Do not retrieve recovery keys, credentials or sensitive security configurations; use bounded user-run read-only checks. |
 | `environment/shell.md` | Current and default shells, versions and executable locations; terminal; profile/initialization files and whether present/loaded; PATH resolution and order; aliases, framework/theme/plugins; execution-policy state where applicable; only the presence/absence of proxy variables, never secret values. |
 | `environment/package-managers.md` | Each applicable package and version manager, its executable path, version, installation prefix or managed directories; installed package inventories and versions, explicit/top-level packages where supported; installed runtimes, selected/default version and configuration source; manager health checks and unverified capabilities. |
 | `environment/languages.md` | Per language: runtimes/interpreters, compilers, version and architecture, installation source, executable path, default PATH resolution and alternatives, associated package managers; SDKs, build tools and targets; verified startup, imports, compile/link/run, build/test capability as applicable. Candidate families informed by existing records include Python, Node.js/JavaScript, Rust, C/C++, Swift, Java and TeX/LaTeX; include only relevant families after applicability review. |
