@@ -55,6 +55,76 @@ For **new workstation registration**, create the applicable topic files with com
 | `environment/network.md` | Network client and proxy software names/versions, non-secret modes and status at observation time; system/WinHTTP and shell proxy summaries; VPN/TUN categories, DNS and routing summaries; SSH client/version, host-alias summaries and authentication test results; remote desktop methods and tested connectivity; unresolved network checks. Exclude secrets, raw configurations and unnecessary addresses. |
 | `containers/` (conditional) | Distinguish a local container runtime, locally hosted deployments, and remote-container management. If local deployments are confirmed, identify their runtime, deployment ID, image/version, service owner, storage and network relationships, and observed health without credentials. Otherwise omit the directory; note installed clients/runtimes in the relevant environment topic. |
 
+## Field coverage refinement from existing records
+
+This refinement combines the already defined field catalog above with the older Mac/Windows records in `NingAloha/infrastructure` and the completed `mba-m4-01` Sandbox audit (2026-10-22). **Additive only:** retain every existing candidate field above and use the following grouped details to avoid omissions. Observed device-specific products, versions and configurations are examples of applicability, never required facts for another workstation.
+
+**Coverage priority:** **Core** means the basic question should be represented at registration (answer with evidence or `待审计`); **Conditional** means establish applicability first and omit confirmed non-applicable sections; **Deep** means collect only for a specific task, contradictory evidence, a security-relevant decision or user interest. A core *question* is not a demand to finish a check on the first session. The user's explicit scope and low-value-check pruning take precedence.
+
+### `README.md` — identity and navigation
+
+- **Core:** stable physical device ID; workstation type/model in non-sensitive terms; primary role, OS family; dated coverage summary; links to actual topic files; source/last-observed date and distinction from live state.
+- **Conditional:** linked Services; relationships to other Devices (remote administration, development/testing access); locally hosted container deployments; user-stated Desired goals and important current Pending work.
+- **Deep:** lifecycle (replacement/retirement vs incremental change), documentation provenance and contradictory cross-topic status. Do not duplicate technical facts or historic operations here.
+
+### `system/hardware.md` — hardware and peripherals
+
+- **Core:** vendor/model/model ID, SoC/CPU name and architecture, physical/logical cores where exposed, memory size, GPU identity, primary physical disks with capacity/type, volume/filesystem and free-space snapshot.
+- **Conditional:** CPU performance/efficiency split; GPU core/VRAM and integrated/discrete/virtual adapters; graphics-driver version and actual driver association; display count and external displays; Thunderbolt/USB or other relevant attached peripherals; battery health where it changes a decision and is safe to collect; device class-specific components.
+- **Deep:** disk interface/protocol, partition/volume topology and health, physical-versus-logical units, GPU driver operational status, historical capacity trends. Do not collect unique serials, hardware UUIDs or unnecessary identifying peripheral data.
+
+### `system/os.md` — software platform
+
+- **Core:** product, distribution/edition, release/version, build/kernel, architecture, observed boot or uptime data when relevant, sanitized device naming, evidence dates and confidence level.
+- **Conditional:** update availability, pending reboot, update/install history, developer command-line tools provided by the OS, version or edition discrepancies across different read paths.
+- **Deep:** correlate OS version, build identifier, kernel and installer/SDK versions only where the discrepancy matters; do not invent explanations, assume a reported update means it completed, or turn unknown reboot status into a definite yes/no.
+
+### `system/security.md` — protection, access and continuity
+
+- **Core:** disk encryption state, baseline platform protection state, **effective** OS application firewall enablement, remote-login/sharing exposure, and whether a system-level backup destination is evidenced.
+- **Conditional:** macOS FileVault/SIP/Gatekeeper, Windows BitLocker/Defender and effective firewall profiles, Linux equivalents; firewall policy versus active state; startup/login items, LaunchAgents/LaunchDaemons, services, scheduled/background jobs, system extensions and driver-related security where applicable.
+- **Deep:** per-app firewall exceptions, packet-filter/network security policy, startup-job target existence, backup/restore verification, remote access attack surface. Prefer read-only checks; do not demand privileged enumeration or harvest FileVault/BitLocker recovery keys, authentication secrets, signing/private keys, certificate stores or full security configurations.
+
+### `environment/shell.md` — user execution context
+
+- **Core:** current interactive versus default/login shell, exact versions and command resolution, terminal(s), basic PATH ordering, user-scoped startup/profile-file presence, observed evidence date.
+- **Conditional:** ZDOTDIR/profile loading order, PowerShell version and execution policy **with scope**, aliases/functions versus executable files, shell frameworks/theme/plugins and their versions, configuration initialization for package/runtime managers, system PATH injection sources, per-terminal differences and proxy-variable *presence* (not values).
+- **Deep:** repeated/missing PATH elements, initialization origin tracing, command precedence, startup effectiveness, plugin behavior and environment-specific reproductions. A command resolving to its bare name can be a shell function: do not assert an absolute binary path without verification.
+
+### `environment/package-managers.md` — inventories and tooling ownership
+
+- **Core:** applicable manager name, version, resolved executable or function state, installation prefix/managed root, main package inventories with source and timestamp, explicitly installed versus transitive packages where supported.
+- **Conditional:** Homebrew formula/cask/leaves/taps and health; Windows Chocolatey/winget or other available managers; npm global packages and registry connectivity without recording private URLs; mise/pyenv/rustup version selectors, sources, active tools/targets; pip/uv/gem/bundler/Cargo inventories as applicable; optional runtime manager state.
+- **Deep:** outdated counts as volatile snapshots, manager health warnings, package command failures and previous install attempts with their dates, dependencies and ownership reconciliation, default directories versus alternate installations, known stale links. An earlier failed install is not proof that the current toolchain is broken; a missing PATH command is not global absence.
+
+### `environment/languages.md` — interpreter and build capability
+
+- **Core:** relevant language family and runtime/compiler identity; version, architecture/target, provenance, command path and actual process executable when different; SDK/build-tool association; separate installation detection from a minimal real capability check.
+- **Conditional:** Python alternatives/virtual environments/standard-library and package-import health; Node/npm/npx and version-manager association; Rust toolchain/channel/target/rustfmt/Clippy; C/C++ Apple Clang or MSVC/GCC toolset, SDK and linker; Swift toolchain; Java/JDK system discovery and alternate install roots; TeX distribution; platform-specific IDE-bundled compilers.
+- **Deep:** clean compilation/link/run of a representative minimal project, IDE-selected interpreter/toolchain, CMake/Ninja/build targets, partial or malformed installations (`sys.prefix`, missing standard library, missing DLLs), conflicting version and SDK values. State **which** test passed; `--version` alone is not project acceptance.
+
+### `environment/tools.md` — applications and developer workflows
+
+- **Core:** relevant IDE/editor identities, observed versions/builds and install source/location; Git client identity/version; key CLI utilities used by the workstation and observed availability.
+- **Conditional:** bundled IDE toolchains and executables versus globally available ones; Git editor/config resolution, GitHub CLI and Git LFS; terminal editors/session tools; formatters, search, JSON, document conversion, local database and diagnostics tools; installed GUI apps with no CLI entry; application helper links.
+- **Deep:** smoke/clean builds in representative IDE projects, launch and dependency failures, command-line integration, stale symlinks left by removed apps, tool-specific exit code meaning. Distinguish a usable IDE bundle from a working CLI PATH command; record historical checks with their original dates.
+
+### `environment/network.md` — clients, reachability and trust boundaries
+
+- **Core:** network interface categories and **snapshot** connectivity; client-side SSH presence/version, relevant non-secret remote-management roles, proxy/VPN client identity and status; relevant system proxy settings; dated reachability samples if supplied.
+- **Conditional:** WinHTTP vs per-user OS proxy vs shell variables; Surge/sing-box and VPN/TUN modes, DNS/routing summaries, active endpoint categories; proxy rule/policy group structure with names/addresses omitted; SSH config/agent/key *presence* and host-block counts; remote desktop client and tested path; inbound SSH only if workstation is acting as a server.
+- **Deep:** independently verify configured mode versus actual interface/routing traffic, individual connection path only where safe/needed, split routes and DNS behavior, per-client authentication test semantics (including nonzero success conventions), direct versus proxied reachability, historical/abandoned remote-access paths and cleanup status. Avoid collecting proxy credentials, private hostnames, raw DNS records, IPs, SSH public-key fingerprints or real destination URLs unless clearly needed and approved; redact them before documentation. A connected VPN entry alone does not prove any particular connection traverses it.
+
+### `containers/<deployment-id>/README.md` — conditional host-scoped deployment
+
+- **Core once applicable:** confirmed local host/device ID, deployment ID and runtime, image/tag or digest at observation time, owning Service link, observed lifecycle/health and evidence date.
+- **Conditional:** compose/project association, container ports and host-published bindings, mounts/volumes and persistent-data ownership, network membership, startup/restart behavior, resource limits, dependencies and health-check meaning (sanitized).
+- **Deep:** application-level acceptance independent of container health, update/rollback consequences, cross-service dependencies and host resource impact. A remote GUI/CLI manager does not place its remotely managed containers under this workstation. A runtime installed without deployments does not require this directory.
+
+### Consistency and audit finish
+
+Before closing a registration or maintenance session, check that the README links only real files and accurately summarizes coverage, that versions and runtime ownership agree across `languages.md`, `package-managers.md` and `tools.md`, and that client, network and Service links use the same documented identities. When later evidence corrects a stale README claim (for example, cleanup of container-related dangling symlinks), propose a scoped synchronization rather than reopening an entire device audit.
+
 For each candidate field, initially write a meaningful `待审计` value, with no fabricated date or supporting evidence. Prefer a concise table per topic with columns such as `Parameter | Value | Evidence / checked at`. A `待审计` entry is an outstanding audit question, **not** a measured fact, a Desired goal or proof that a component is missing. For conditional items, first ask the user whether the capability or component applies.
 
 During each documentation-maintenance session for a device, scan the **repository documentation** for `待审计` fields and offer a small, prioritized batch of user-run checks. This is not a direct OS scan. Do not hijack a focused task: briefly summarize outstanding coverage and let the user defer it. When the user returns evidence, update the field with the observed value, source, date and validation level; when confirmed not applicable or not installed, record that distinction and propose removal of irrelevant placeholders. Never delete a field merely because a command produced no output or the user skipped a check. Every document deletion or update follows the shared conversation-scoped GitHub authorization policy; deletions and scope expansions require separate approval.
