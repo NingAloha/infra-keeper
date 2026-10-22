@@ -40,6 +40,10 @@ Read [GitHub backends](references/github-backends.md) first.
 
 Read [MCP instructions](references/github-mcp.md) or [CLI instructions](references/github-cli.md) according to the selected backend. A Skill supplies instructions; it cannot itself provision GitHub access or grant scopes.
 
+## Workstation records
+
+For workstation documentation under `devices/<device-id>/`, follow [Workstation documentation](references/workstation.md). Use stable physical-device IDs, keep documents limited to evidenced facts, pending items and desired state, and describe actual changes in Git history. This does not enable live device audits or authorize any write.
+
 ## Repository discovery and evidence
 
 1. Use the user's explicit repository selection or the repository established in context. Otherwise discover accessible repositories; ask when ambiguous.
