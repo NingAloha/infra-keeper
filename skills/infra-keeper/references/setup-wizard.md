@@ -232,7 +232,7 @@ full target is the authenticated user's `OWNER/infrastructure`. The user may cho
    ```
 
    Ask for separate approval to create exactly this repository. This is the only repository-creation
-   approval in setup. The default is private; public visibility requires an explicit user choice.
+   approval in setup. Visibility is always private; there is no public-repository setup path.
 4. After approval, run the bundled `create-repository` helper, which invokes
    `gh repo create OWNER/REPO --private --add-readme`. Do not create a branch, add a remote, clone,
    push local content, or modify repository settings as part of bootstrap.

@@ -76,6 +76,7 @@ See [Hermes Desktop integration notes](docs/hermes.md) for setup guidance.
 - `main` contains only canonical navigation and shared entry points; each device writes only its own `infra/device/<device-id>` branch and never merges it into `main`.
 - A device branch is read and synchronized only when that device is in the current task; shared cross-device content is not silently written to a device branch.
 - The target repository owner must match the authenticated `gh` user; organization, collaborator and other-user repositories are out of scope.
+- After binding, ordinary reads are restricted to the locally bound repository; only first-run setup and an explicit rebind flow may inspect another personal repository.
 - On the first run with no binding, create one private personal repository only after separate approval; later setup runs never create another repository.
 - Reads, searches, history and status checks may be automatic.
 - **Every write** requires specific prior approval of the proposed path(s), content/diff, impact and rollback.

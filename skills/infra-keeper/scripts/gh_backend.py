@@ -173,6 +173,37 @@ def repository(owner: str, repo: str) -> tuple[str, str]:
     return owner, repo
 
 
+def require_bound_repository(owner: str, repo: str) -> dict[str, Any]:
+    state = load_state()
+    if state is None:
+        raise BackendError(
+            "local InfraKeeper binding state is absent; use the setup or explicit rebind flow"
+        )
+    stored_owner, stored_repo = split_repository(state["binding"]["repository"])
+    if (stored_owner.casefold(), stored_repo.casefold()) != (owner.casefold(), repo.casefold()):
+        raise BackendError("local binding does not match the requested repository")
+    return state
+
+
+def require_read_scope(args: argparse.Namespace, owner: str, repo: str) -> None:
+    state = load_state()
+    if args.setup:
+        if state is not None:
+            raise BackendError("a local binding already exists; use the explicit rebind flow")
+        return
+    if args.rebind:
+        if state is None:
+            raise BackendError("the explicit rebind flow requires an existing local binding")
+        return
+    if state is None:
+        raise BackendError(
+            "local InfraKeeper binding state is absent; use the setup or explicit rebind flow"
+        )
+    stored_owner, stored_repo = split_repository(state["binding"]["repository"])
+    if (stored_owner.casefold(), stored_repo.casefold()) != (owner.casefold(), repo.casefold()):
+        raise BackendError("local binding does not match the requested repository")
+
+
 def branch(value: str) -> str:
     value = required_text(value, "branch")
     if len(value) > 255 or "\x00" in value or value.startswith("-"):
@@ -328,12 +359,14 @@ def check_head(owner: str, repo: str, ref: str, expected: str | None) -> None:
 def read_file(args: argparse.Namespace) -> dict[str, Any]:
     owner, repo = repository(args.owner, args.repo)
     enforce_personal_repository(owner, repo)
+    require_read_scope(args, owner, repo)
     return current_file(owner, repo, repo_path(args.path), branch(args.branch))
 
 
 def list_directory(args: argparse.Namespace) -> dict[str, Any]:
     owner, repo = repository(args.owner, args.repo)
     enforce_personal_repository(owner, repo)
+    require_read_scope(args, owner, repo)
     ref = branch(args.branch)
     path = repo_path(args.path, allow_empty=True)
     result = gh_api(
@@ -348,6 +381,7 @@ def list_directory(args: argparse.Namespace) -> dict[str, Any]:
 def list_commits(args: argparse.Namespace) -> dict[str, Any]:
     owner, repo = repository(args.owner, args.repo)
     enforce_personal_repository(owner, repo)
+    require_read_scope(args, owner, repo)
     ref = branch(args.branch)
     if not 1 <= args.per_page <= 100:
         raise BackendError("per-page must be from 1 to 100")
@@ -363,6 +397,7 @@ def list_commits(args: argparse.Namespace) -> dict[str, Any]:
 def repository_head(args: argparse.Namespace) -> dict[str, Any]:
     owner, repo = repository(args.owner, args.repo)
     enforce_personal_repository(owner, repo)
+    require_read_scope(args, owner, repo)
     ref = branch(args.branch)
     return {
         "repository": f"{owner}/{repo}",
@@ -374,6 +409,7 @@ def repository_head(args: argparse.Namespace) -> dict[str, Any]:
 def branch_head(args: argparse.Namespace) -> dict[str, Any]:
     owner, repo = repository(args.owner, args.repo)
     enforce_personal_repository(owner, repo)
+    require_read_scope(args, owner, repo)
     ref = branch(args.branch)
     return {
         "repository": f"{owner}/{repo}",
@@ -385,6 +421,7 @@ def branch_head(args: argparse.Namespace) -> dict[str, Any]:
 def repository_info(args: argparse.Namespace) -> Any:
     owner, repo = repository(args.owner, args.repo)
     enforce_personal_repository(owner, repo)
+    require_read_scope(args, owner, repo)
     return gh_api(endpoint(owner, repo))
 
 
@@ -413,12 +450,7 @@ def is_device_branch(ref: str) -> bool:
 
 
 def require_bound_device_state(owner: str, repo: str) -> tuple[dict[str, Any], str]:
-    state = load_state()
-    if state is None:
-        raise BackendError("local InfraKeeper binding state is absent")
-    stored_owner, stored_repo = split_repository(state["binding"]["repository"])
-    if (stored_owner.casefold(), stored_repo.casefold()) != (owner.casefold(), repo.casefold()):
-        raise BackendError("local binding does not match the requested repository")
+    state = require_bound_repository(owner, repo)
     bound_branch = state["binding"].get("device_branch")
     if not isinstance(bound_branch, str):
         raise BackendError("local binding has no device branch; configure this device first")
@@ -621,10 +653,18 @@ def record_bound_head(owner: str, repo: str, ref: str, new_head: str) -> dict[st
 def write_binding(args: argparse.Namespace) -> dict[str, Any]:
     if not args.verified:
         raise BackendError("--verified is required after successful repository verification")
+    if not (args.setup or args.rebind):
+        raise BackendError("--setup or --rebind is required for binding changes")
     owner, repo = repository(args.owner, args.repo)
     ref = branch(args.branch)
     if ref != "main":
         raise BackendError("InfraKeeper bindings must use the main branch")
+    enforce_personal_repository(owner, repo)
+    existing_state = load_state()
+    if args.setup and existing_state is not None:
+        raise BackendError("a local binding already exists; use the explicit rebind flow")
+    if args.rebind and existing_state is None:
+        raise BackendError("the explicit rebind flow requires an existing local binding")
     head = sha(args.head_sha, "head-sha")
     current_device_id = device_id(args.device_id)
     bootstrap: dict[str, Any] = {"status": args.bootstrap_status}
@@ -677,6 +717,10 @@ def enforce_personal_repository(owner: str, repo: str) -> None:
 def create_repository(args: argparse.Namespace) -> dict[str, Any]:
     if not args.approved:
         raise BackendError("--approved is required after explicit bounded user approval")
+    if not args.setup:
+        raise BackendError("--setup is required for first-run repository creation")
+    if load_state() is not None:
+        raise BackendError("a local binding already exists; use the explicit rebind flow")
     owner, repo = repository(args.owner, args.repo)
     enforce_personal_repository(owner, repo)
 
@@ -689,14 +733,13 @@ def create_repository(args: argparse.Namespace) -> dict[str, Any]:
         raise BackendError("repository already exists; choose a different repository name")
 
     description = required_text(args.description, "description")
-    visibility_flag = "--private" if args.visibility == "private" else "--public"
     run_gh_command(
         [
             "gh",
             "repo",
             "create",
             f"{owner}/{repo}",
-            visibility_flag,
+            "--private",
             "--add-readme",
             "--description",
             description,
@@ -705,6 +748,8 @@ def create_repository(args: argparse.Namespace) -> dict[str, Any]:
     info = gh_api(endpoint(owner, repo))
     if not isinstance(info, dict):
         raise BackendError("repository was created but GitHub returned no repository metadata")
+    if info.get("visibility") != "private":
+        raise BackendError("repository was created, but its visibility is not private")
     default_branch = info.get("default_branch")
     if default_branch != "main":
         raise BackendError(
@@ -722,7 +767,7 @@ def create_repository(args: argparse.Namespace) -> dict[str, Any]:
     return {
         "action": "create-repository",
         "repository": info.get("full_name", f"{owner}/{repo}"),
-        "visibility": info.get("visibility", args.visibility),
+        "visibility": "private",
         "default_branch": default_branch,
         "initial_commit_sha": initial_commit_sha,
     }
@@ -841,6 +886,12 @@ def add_ref_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--branch", default="main")
 
 
+def add_read_scope_args(parser: argparse.ArgumentParser) -> None:
+    scope = parser.add_mutually_exclusive_group()
+    scope.add_argument("--setup", action="store_true", help="allow an unbound first-run verification read")
+    scope.add_argument("--rebind", action="store_true", help="allow an explicit rebind verification read")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -858,6 +909,9 @@ def build_parser() -> argparse.ArgumentParser:
     state_write_parser.add_argument("--initial-commit-sha")
     state_write_parser.add_argument("--head-sha", required=True)
     state_write_parser.add_argument("--device-id", required=True)
+    state_write_scope = state_write_parser.add_mutually_exclusive_group(required=True)
+    state_write_scope.add_argument("--setup", action="store_true")
+    state_write_scope.add_argument("--rebind", action="store_true")
     state_write_parser.add_argument("--verified", action="store_true")
     state_write_parser.set_defaults(handler=write_binding)
 
@@ -887,11 +941,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     info_parser = subparsers.add_parser("repository")
     add_repository_args(info_parser)
+    add_read_scope_args(info_parser)
     info_parser.set_defaults(handler=repository_info)
 
     create_repo_parser = subparsers.add_parser("create-repository")
     add_repository_args(create_repo_parser)
-    create_repo_parser.add_argument("--visibility", choices=("private", "public"), default="private")
+    create_repo_parser.add_argument("--setup", action="store_true")
     create_repo_parser.add_argument(
         "--description",
         default="InfraKeeper infrastructure documentation",
@@ -901,15 +956,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     commits_parser = subparsers.add_parser("list-commits")
     add_ref_args(commits_parser)
+    add_read_scope_args(commits_parser)
     commits_parser.add_argument("--per-page", type=int, default=10)
     commits_parser.set_defaults(handler=list_commits)
 
     head_parser = subparsers.add_parser("repository-head")
     add_ref_args(head_parser)
+    add_read_scope_args(head_parser)
     head_parser.set_defaults(handler=repository_head)
 
     branch_head_parser = subparsers.add_parser("branch-head")
     add_ref_args(branch_head_parser)
+    add_read_scope_args(branch_head_parser)
     branch_head_parser.set_defaults(handler=branch_head)
 
     device_branch_parser = subparsers.add_parser("ensure-device-branch")
@@ -920,11 +978,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     file_parser = subparsers.add_parser("get-file")
     add_ref_args(file_parser)
+    add_read_scope_args(file_parser)
     file_parser.add_argument("--path", required=True)
     file_parser.set_defaults(handler=read_file)
 
     directory_parser = subparsers.add_parser("list-directory")
     add_ref_args(directory_parser)
+    add_read_scope_args(directory_parser)
     directory_parser.add_argument("--path", default="")
     directory_parser.set_defaults(handler=list_directory)
 

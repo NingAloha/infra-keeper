@@ -28,8 +28,8 @@ python3 skills/infra-keeper/scripts/gh_backend.py sync-binding-head --owner OWNE
 python3 skills/infra-keeper/scripts/gh_backend.py bind-device --owner OWNER --repo REPO --device-id DEVICE_ID --verified
 python3 skills/infra-keeper/scripts/gh_backend.py ensure-device-branch --owner OWNER --repo REPO --main-head-sha MAIN_HEAD_SHA --approved
 python3 skills/infra-keeper/scripts/gh_backend.py repository --owner OWNER --repo REPO
-python3 skills/infra-keeper/scripts/gh_backend.py create-repository --owner OWNER --repo REPO --approved
-python3 skills/infra-keeper/scripts/gh_backend.py write-binding --owner OWNER --repo REPO --branch main --bootstrap-status created --initial-commit-sha INITIAL_SHA --head-sha HEAD_SHA --device-id DEVICE_ID --verified
+python3 skills/infra-keeper/scripts/gh_backend.py create-repository --owner OWNER --repo REPO --setup --approved
+python3 skills/infra-keeper/scripts/gh_backend.py write-binding --owner OWNER --repo REPO --branch main --bootstrap-status created --initial-commit-sha INITIAL_SHA --head-sha HEAD_SHA --device-id DEVICE_ID --setup --verified
 python3 skills/infra-keeper/scripts/gh_backend.py get-file --owner OWNER --repo REPO --path README.md --branch main
 python3 skills/infra-keeper/scripts/gh_backend.py list-directory --owner OWNER --repo REPO --branch main
 python3 skills/infra-keeper/scripts/gh_backend.py list-commits --owner OWNER --repo REPO --branch main
@@ -38,7 +38,9 @@ python3 skills/infra-keeper/scripts/gh_backend.py list-commits --owner OWNER --r
 The helper calls `gh api` without a shell, emits machine-readable JSON, validates repository paths,
 requires the requested repository owner to match the authenticated user's GitHub login, and keeps
 credentials in `gh`'s own credential mechanism. Its `create-repository` command is only for the
-first-run bootstrap, defaults to a private repository with `--add-readme`, and requires `--approved`.
+first-run bootstrap, always creates a private repository with `--add-readme`, and requires `--setup` plus
+`--approved`. Ordinary reads must match the local binding; `--setup` and `--rebind` are the only
+verification-read exceptions. `write-binding` likewise requires an explicit `--setup` or `--rebind` mode.
 Its `read-state`, `write-binding`, `bind-device` and `update-binding-head` commands manage only the local
 non-secret binding state. `repository-head` reads a branch HEAD. `sync-binding-head` compares the stored
 checkpoint for the requested branch with GitHub's commit graph and updates local state only when the

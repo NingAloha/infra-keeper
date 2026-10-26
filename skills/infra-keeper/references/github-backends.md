@@ -39,6 +39,7 @@ A missing CLI capability can justify using the helper's direct `gh` fallback. A 
 ## Common behavioral contract
 
 - Read canonical navigation from `main`; write only to the active `infra/device/<device-id>` branch.
+- After binding, ordinary reads are restricted to that repository; only first-run setup and an explicit rebind flow may inspect another personal repository.
 - Device branches are not merged into `main`; no arbitrary branch lifecycle, force-push or history rewriting.
 - Automatically read/search/history/status.
 - Require concrete, explicit authorization before **every branch or file write**.
