@@ -61,14 +61,12 @@ reads that file before repository work or asking for a name, then still re-verif
 The file contains no token, credential data or repository contents. If Hermes cannot read or persist the
 file, the current run can still finish, but the next session may ask for the repository again.
 
-## Evidence and limitations
+## Limitations
 
-- [CLI execution evidence](../tests/hermes-smoke-test.md): approval-before-write and single-file creation on `main`.
-- [CLI lifecycle evidence](../tests/integration/cli-lifecycle.md): the lifecycle run through `gh api`, including a server-side rejection of a stale blob SHA.
-- [CLI helper unit tests](../tests/test_gh_backend.py): parameter validation, approval gate and stale-SHA preflight.
+- This source package does not ship test fixtures, acceptance logs or automated conformance tests.
 - Readiness checks do not establish write permission until the target repository is read and the intended operation is authorized.
-- Multi-file commits, move/rename, and permission-denied behavior are not yet exercised by the helper.
-- No actual cloud server, DNS, or device was contacted by these tests.
+- Multi-file commits, move/rename, and permission-denied behavior require separate validation.
+- No actual cloud server, DNS or device is contacted by the plugin.
 
 ## Reload after an update
 

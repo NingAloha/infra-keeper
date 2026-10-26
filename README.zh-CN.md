@@ -44,10 +44,6 @@ skills/infra-keeper/references/
   github-workflow.md
   setup-wizard.md
 docs/hermes.md
-tests/
-  test_gh_backend.py
-  hermes-smoke-test.md
-  integration/cli-lifecycle.md
 ```
 
 插件打包面向 [Agent Plugins](https://agent-plugins.org/specification)；内嵌 Skill 遵循
@@ -85,42 +81,8 @@ tests/
 - 绝不把凭据、私钥、令牌或敏感基础设施细节提交到公开示例中。
 - 初始化向导除首次单独批准的仓库创建外不写 GitHub 内容，也不创建测试提交；本机安装或登录只有在单独批准具体命令后才会执行。
 
-## 验证状态（2026-10-22）
-
-Hermes 桌面已成功**加载插件与 Skill**，并通过 **GitHub CLI** 完成认证读取、写入前审批与回读
-校验。CLI 路径还完成了一轮五阶段生命周期测试。
-
-| 后端 | 证据 | 已验证 | 尚未测试 |
-| --- | --- | --- | --- |
-| GitHub CLI | [CLI 冒烟测试](tests/hermes-smoke-test.md)、[CLI 生命周期测试](tests/integration/cli-lifecycle.md) | 读取、审批、新建、按 Blob SHA 条件更新、并发编辑时停止、服务端拒绝过期 SHA（`409`）、按 Blob SHA 条件删除、逐字节恢复、回读 | 过期 `sha` 的**删除**是否被拒（只测了匹配值）、多文件原子提交、移动/重命名、权限拒绝行为、两个独立账号 |
-| 内置 CLI 辅助脚本 | [单元测试](tests/test_gh_backend.py) | JSON CLI 参数校验、审批门、过期 Blob SHA 拒绝 | 真实 GitHub 端到端运行、跨宿主安装 |
-
-**初始化向导状态**：向导协议已写入并提交，但尚未经过验收运行。上表报告的是 CLI 和辅助脚本的
-验证状态，不是向导本身的行为。
-
-**关于冲突证据的范围说明**：当前唯一后端是 GitHub CLI。过期 SHA 的写入由 HTTP `409` 拒绝，
-响应携带 `Server: github.com` 与 GitHub 请求 ID，因此对 REST Contents API 而言，本仓库主张
-`sha` 前置条件由服务端强制。
-
-上述均为手工、单环境验收测试，**不是自动化一致性测试**。CLI 冒烟测试证据提交为
-[CLI 测试 `09f4ad2`](https://github.com/NingAloha/infra-keeper/commit/09f4ad22076856123d2cc99674b36b32812a62cd)；
-生命周期各阶段为提交
-[`6f336ade`](https://github.com/NingAloha/infra-keeper/commit/6f336adeb15de0892b4fba2bf6a2367810f3ffd5)、
-[`f87b3313`](https://github.com/NingAloha/infra-keeper/commit/f87b33138937139a96843efcef928c32bceae4c6)、
-[`73fe73b8`](https://github.com/NingAloha/infra-keeper/commit/73fe73b8ce9329a19c4e5527e693fc8db36299ac)、
-[`b95e8bee`](https://github.com/NingAloha/infra-keeper/commit/b95e8beebb738e6e33b9eb102b684ad1d07c1712)、
-[`3be2869d`](https://github.com/NingAloha/infra-keeper/commit/3be2869d01527efb891213543003aec0c157e521)。
-CLI 生命周期各阶段为提交
-[`5d350208`](https://github.com/NingAloha/infra-keeper/commit/5d350208272823d861b42b93b6d79ad4b3cd538b)、
-[`05a7c7f8`](https://github.com/NingAloha/infra-keeper/commit/05a7c7f8c7d84d82890b29f047f035a781808b0e)、
-[`ed63fad4`](https://github.com/NingAloha/infra-keeper/commit/ed63fad49e650bccd1ef96d8c0ca2989924b2d6e)（网页编辑器）、
-[`95b3d34b`](https://github.com/NingAloha/infra-keeper/commit/95b3d34b9ecde11fac08256c06b8504b5f3ba295)、
-[`343b25fa`](https://github.com/NingAloha/infra-keeper/commit/343b25faf305dbc9514da12330c73965171156ce)；
-C-2 的拒绝未产生提交。ChatGPT/Codex 插件安装尚未单独验证。
-
 ## 当前范围
 
-只实现 **GitHub 支撑的文档工作流**。基础设施清单模板、实时 SSH/云操作、可复现的测试自动化、
-完整多平台验证均为后续工作。**设备审计尚不存在**——初始化只负责准备该审计将要读取的仓库访问
-权限。冲突处理已通过 GitHub CLI 手工演练，并由插件内 CLI 辅助脚本的单元测试覆盖审批门和版本
-冲突检查。本版本不提供 GitHub MCP、Local Workspace 或 Local Git 后端。
+只实现 **GitHub 支撑的文档工作流**。基础设施清单模板、实时 SSH/云操作、完整多平台验证均为
+后续工作。**设备审计尚不存在**——初始化只负责准备该审计将要读取的仓库访问权限。内置辅助脚本
+会对写入执行审批和版本前置条件。本版本不提供 GitHub MCP、Local Workspace 或 Local Git 后端。

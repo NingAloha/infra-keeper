@@ -52,10 +52,6 @@ skills/infra-keeper/references/
   github-workflow.md
   setup-wizard.md
 docs/hermes.md
-tests/
-  test_gh_backend.py
-  hermes-smoke-test.md
-  integration/cli-lifecycle.md
 ```
 
 The plugin packaging is intended for [Agent Plugins](https://agent-plugins.org/specification); the embedded Skill uses the [Agent Skills specification](https://agentskills.io/specification). Compatibility must be verified separately per host.
@@ -70,7 +66,7 @@ Choose one authorized backend:
 The bundled `skills/infra-keeper/scripts/gh_backend.py` wraps common GitHub operations as structured
 JSON and requires approval plus SHA preconditions for writes.
 
-See [Hermes Desktop integration notes](docs/hermes.md) for the tested setup and limitations.
+See [Hermes Desktop integration notes](docs/hermes.md) for setup guidance and limitations.
 
 ## Safety policy
 
@@ -84,22 +80,6 @@ See [Hermes Desktop integration notes](docs/hermes.md) for the tested setup and 
 - Repository documentation is **historical evidence**, not proof of current service health.
 - Never commit credentials, private keys, tokens, or sensitive infrastructure details to public examples.
 
-## Verification status (2026-10-22)
-
-Hermes Desktop has successfully **loaded the plugin and Skill** and completed authenticated read, approval-before-write, and read-back checks through **GitHub CLI**. The CLI path has additionally completed a five-stage lifecycle test on `main`.
-
-| Backend | Evidence | Confirmed | Not yet tested |
-| --- | --- | --- | --- |
-| GitHub CLI | [CLI smoke test](tests/hermes-smoke-test.md), [CLI lifecycle test](tests/integration/cli-lifecycle.md) | Read, approval, create, update guarded by blob SHA, stop on a concurrent edit, server-side rejection of a stale SHA (`409`), delete conditioned on the blob SHA, byte-exact restore, read-back | Stale-`sha` **delete** rejection (only the matching case was run), multi-file atomic commit, move/rename, permission-denied behavior, two independent accounts |
-| Bundled CLI helper | [Unit tests](tests/test_gh_backend.py) | JSON CLI validation, approval gate, stale blob SHA rejection | Live GitHub end-to-end run, cross-host installation |
-
-**Setup wizard status:** the wizard protocol is documented and committed, but it has not yet been
-exercised in an acceptance run. This table reports CLI and helper verification, not wizard behaviour.
-
-**Scope note on the conflict evidence:** GitHub CLI is the only active backend. The stale-SHA write was rejected with an HTTP `409` response carrying `Server: github.com` and a GitHub request ID, so for the REST Contents API this repository claims server-side enforcement of the `sha` precondition.
-
-These were manual, single-environment acceptance tests, **not automated conformance tests**. The CLI smoke-test evidence was committed as [CLI test `09f4ad2`](https://github.com/NingAloha/infra-keeper/commit/09f4ad22076856123d2cc99674b36b32812a62cd); the CLI lifecycle stages are commits [`5d350208`](https://github.com/NingAloha/infra-keeper/commit/5d350208272823d861b42b93b6d79ad4b3cd538b), [`05a7c7f8`](https://github.com/NingAloha/infra-keeper/commit/05a7c7f8c7d84d82890b29f047f035a781808b0e), [`ed63fad4`](https://github.com/NingAloha/infra-keeper/commit/ed63fad49e650bccd1ef96d8c0ca2989924b2d6e) (web editor), [`95b3d34b`](https://github.com/NingAloha/infra-keeper/commit/95b3d34b9ecde11fac08256c06b8504b5f3ba295) and [`343b25fa`](https://github.com/NingAloha/infra-keeper/commit/343b25faf305dbc9514da12330c73965171156ce); the C-2 rejection produced no commit. ChatGPT/Codex plugin installation has not been separately validated.
-
 ## Current scope
 
-Only **GitHub-backed documentation workflows** are implemented. Infrastructure inventory templates, live SSH/cloud operations, and full multi-platform validation are future work. **A device audit does not exist yet** — setup only prepares access to the repository that such an audit would read. Conflict handling is exercised through GitHub CLI and covered by unit tests for the bundled helper's approval and version checks. No GitHub MCP, Local Workspace or Local Git backend exists in this version.
+Only **GitHub-backed documentation workflows** are implemented. Infrastructure inventory templates, live SSH/cloud operations, and full multi-platform validation are future work. **A device audit does not exist yet** — setup only prepares access to the repository that such an audit would read. The bundled helper enforces approval and version preconditions for writes. No GitHub MCP, Local Workspace or Local Git backend exists in this version.
