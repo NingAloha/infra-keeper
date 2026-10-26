@@ -8,8 +8,8 @@ InfraKeeper is an experimental **Agent Plugin** that packages a standard **Agent
 
 1. Install this repository in a compatible Agent Plugin host (see below).
 2. After installation, start any relevant InfraKeeper task. The Agent automatically runs a read-only
-   preflight; you do not need to say “initialize” first. With no binding on the first run it opens the
-   bootstrap flow, then only verifies the binding on later runs.
+   preflight; with no binding on the first run it opens the bootstrap flow, then only verifies the
+   binding on later runs.
 3. The preflight first detects the local **GitHub CLI (`gh`)** in the Agent page. If it is missing, it
    shows an official installation command and its effect; after approval, the Agent page runs it and
    re-checks.
