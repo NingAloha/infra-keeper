@@ -10,7 +10,7 @@ InfraKeeper is an experimental **Agent Plugin** that packages a standard **Agent
 2. After installation, start any relevant InfraKeeper task. The Agent automatically runs a read-only
    preflight; with no binding on the first run it opens the bootstrap flow, then only verifies the
    binding on later runs.
-   Run only one InfraKeeper Agent session at a time on a given device; do not run parallel sessions.
+   Read-only evidence gathering may run in parallel, but do not let multiple sessions update the same device's documentation or state at the same time.
 3. The preflight first detects the local **GitHub CLI (`gh`)** in the Agent page. If it is missing, it
    shows an official installation command and its effect; after approval, the Agent page runs it and
    re-checks.
@@ -76,6 +76,7 @@ See [Hermes Desktop integration notes](docs/hermes.md) for setup guidance.
 
 - `main` contains only canonical navigation and shared entry points; each device writes only its own `infra/device/<device-id>` branch and never merges it into `main`.
 - A device branch is read and synchronized only when that device is in the current task; shared cross-device content is not silently written to a device branch.
+- Device information comes from user-run read-only checks and selected results they provide; the Agent does not scan or operate the user's device directly.
 - The target repository owner must match the authenticated `gh` user; organization, collaborator and other-user repositories are out of scope.
 - After binding, ordinary reads are restricted to the locally bound repository; only first-run setup and an explicit rebind flow may inspect another personal repository.
 - On the first run with no binding, create one private personal repository only after separate approval; later setup runs never create another repository.
