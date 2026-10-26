@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Safe JSON CLI wrapper around GitHub's Contents API via ``gh api``.
 
-This is a Skill support script, not an MCP server. It keeps GitHub
-authentication in the user's existing gh credential store and never accepts
-or writes tokens. Commands print JSON to stdout and diagnostics to stderr.
+This is a Skill support script. It keeps GitHub authentication in the user's
+existing gh credential store and never accepts or writes tokens. Commands print
+JSON to stdout and diagnostics to stderr.
 """
 
 from __future__ import annotations

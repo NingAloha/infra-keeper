@@ -62,13 +62,6 @@ reads that file before repository work or asking for a name, then still re-verif
 The file contains no token, credential data or repository contents. If Hermes cannot read or persist the
 file, the current run can still finish, but the next session may ask for the repository again.
 
-## Limitations
-
-- This source package does not ship test fixtures, acceptance logs or automated conformance tests.
-- Readiness checks do not establish write permission until the target repository is read and the intended operation is authorized.
-- Multi-file commits, move/rename, and permission-denied behavior require separate validation.
-- No actual cloud server, DNS or device is contacted by the plugin.
-
 ## Reload after an update
 
 After changing the Skill or helper, reload the plugin. Starting a new Hermes session is advised if

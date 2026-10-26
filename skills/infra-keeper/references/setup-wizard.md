@@ -6,7 +6,7 @@ create exactly one personal repository after a separate approval; later runs onl
 binding. It runs before the first relevant InfraKeeper task in a new agent session, and is also the
 entry point for "初始化 InfraKeeper" / "set up InfraKeeper". It detects
 whether `gh` is available, walks the user through installation and authentication one step at a
-time, and then creates or verifies the personal repository. It is not a device audit.
+time, and then creates or verifies the personal repository.
 
 ## Trigger
 
@@ -331,15 +331,13 @@ backend selected: cli
 repository: OWNER/REPO (main, private)
 cli: ready            (read access verified)
 bootstrap: created in this run / reused existing binding
-outstanding: device audit (not implemented in this version)
 ```
 
 Close with three statements: no repository content was changed after bootstrap; if this was the first
 run, report the exact repository-creation command and resulting initial commit separately; any
 approved local installation or login command is also reported separately, the local state file was
 written (or why it could not be written), and no other host configuration was changed; the bound
-repository is `OWNER/REPO` on `main`; the next step is a read-only device audit, which this version
-does not implement.
+repository is `OWNER/REPO` on `main`; the requested work can now continue.
 
 ## Status vocabulary
 
@@ -370,7 +368,6 @@ answered by a fresh read.
 | --- | --- |
 | User stops mid-flow | do not write binding state; say so and stop |
 | Re-run after interruption | start at S1, report current facts, skip installation guidance for backends already present |
-| Add a second backend later | not supported in this version |
 | Re-verify a connection | re-run S3 and S5 for the bound repository |
 | Target repository changes | restart at S4 with the new `OWNER/REPO` |
 

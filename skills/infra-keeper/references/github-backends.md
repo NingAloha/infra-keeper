@@ -8,15 +8,14 @@ InfraKeeper supports one GitHub operation backend:
 
 ## First-time setup
 
-A request to initialize InfraKeeper, configure or connect the CLI, or re-verify a connection belongs
-to the [setup wizard](setup-wizard.md), not to this section. The
+A first relevant InfraKeeper task, or a request to initialize, configure, connect the CLI or re-verify
+a connection, belongs to the [setup wizard](setup-wizard.md), not to this section. The
 wizard owns user onboarding, the one-time personal-repository bootstrap and the later read-only
 readiness verdict, including the states, the probes and the configuration guidance. Do not restate
 those steps here.
 
-The negotiation below covers ordinary documentation work once at least one backend is usable. It
-keeps its own rules, and the wizard does not restate them. This version supports only GitHub CLI;
-no GitHub MCP, Local Workspace or Local Git backend exists.
+The negotiation below covers ordinary documentation work once the GitHub CLI is usable. It keeps its
+own rules, and the wizard does not restate them.
 
 ## Capability negotiation
 

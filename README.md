@@ -37,8 +37,6 @@ After S5 succeeds, InfraKeeper stores only binding metadata in a local app state
 or repository contents. Each new agent session reads that file first and re-verifies the recorded
 repository before use; if the file is unavailable or invalid, it asks for the repository again.
 
-Setup ends by pointing at a device audit. That audit is **not implemented** in this version.
-
 ## Package layout
 
 ```text
@@ -67,7 +65,7 @@ Choose one authorized backend:
 The bundled `skills/infra-keeper/scripts/gh_backend.py` wraps common GitHub operations as structured
 JSON and requires approval plus SHA preconditions for writes.
 
-See [Hermes Desktop integration notes](docs/hermes.md) for setup guidance and limitations.
+See [Hermes Desktop integration notes](docs/hermes.md) for setup guidance.
 
 ## Safety policy
 
@@ -83,4 +81,6 @@ See [Hermes Desktop integration notes](docs/hermes.md) for setup guidance and li
 
 ## Current scope
 
-Only **GitHub-backed documentation workflows** are implemented. Infrastructure inventory templates, live SSH/cloud operations, and full multi-platform validation are future work. **A device audit does not exist yet** — setup only prepares access to the repository that such an audit would read. The bundled helper enforces approval and version preconditions for writes. No GitHub MCP, Local Workspace or Local Git backend exists in this version.
+InfraKeeper maintains versioned infrastructure documentation in personal GitHub repositories through
+the local GitHub CLI. It supports evidence-first workstation and server records, guarded documentation
+writes on `main`, local binding state and automatic setup preflight.
