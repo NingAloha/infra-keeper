@@ -45,9 +45,10 @@ Read [GitHub backends](references/github-backends.md) first.
 
 At the start of a new agent session, read the local InfraKeeper state with the bundled helper before
 using a repository. The recorded `main` HEAD SHA is the last confirmed GitHub checkpoint, not a local
-working-tree version. Re-verify the current `gh` identity and `OWNER/REPO@main`; if GitHub differs from
-that checkpoint, report the remote change and stop automatic writes. Never treat the local file as
-GitHub permission.
+working-tree version. Re-verify the current `gh` identity and `OWNER/REPO@main`; if the remote `main` is
+a normal descendant of that checkpoint, update the local checkpoint and continue the normal ready flow.
+If it is behind, diverged or rewritten, report the remote change and stop automatic writes. Never treat
+the local file as GitHub permission.
 
 1. Use the local **GitHub CLI (`gh`)** only when shell access and a properly authenticated CLI are available.
 2. Prefer the bundled JSON CLI helper described in [GitHub CLI instructions](references/github-cli.md#bundled-json-cli-helper) for structured reads and guarded Contents API writes.

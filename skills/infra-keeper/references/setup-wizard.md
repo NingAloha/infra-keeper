@@ -25,15 +25,15 @@ an audit needs a bound repository.
 
 Setup is read-only for GitHub except for the one-time personal-repository bootstrap, including when
 the user offers to let you "just test it". An approved local package installation, the approved
-repository bootstrap and the non-secret local binding-state write after S5 are the only setup-time
-mutations allowed by this flow:
+repository bootstrap, the non-secret local binding-state write after S5 and a proven fast-forward
+refresh of the local checkpoint are the only setup-time mutations allowed by this flow:
 
 - Probe only with the read operations named below. Never create, modify, move or delete a file, and
   never create a "test" commit or branch. There are zero GitHub writes unless this is the first run
   with no binding and the user separately approves creation of the named personal repository.
 - Never change the host's environment variables, shell profiles or credential files. The only local
-  file this flow may write is the app-owned binding state after S5; it contains no token, credential
-  data or repository contents. **No silent
+  file this flow may write is the app-owned binding state after S5 or its `head_sha` after a proven
+  fast-forward; it contains no token, credential data or repository contents. **No silent
   installation or authentication**: if the user explicitly asks the assistant to install `gh`, show
   the exact command, package source and expected effect first, obtain separate approval for that
   one command, execute only that command in the Agent page when the host allows it, and re-check
@@ -51,19 +51,21 @@ mutations allowed by this flow:
 
 ## Automatic preflight before conversation
 
-Before asking the user for setup information, run these read-only checks in the Agent page when local
-command execution is available:
+Before asking the user for setup information, run these checks in the Agent page when local command
+execution is available:
 
 1. Read the local state with `gh_backend.py read-state`.
 2. Run `gh --version` and `gh auth status`; report only redacted readiness facts.
 3. If a valid local binding exists, verify only that `OWNER/REPO@main` and its root listing are readable,
-   and compare GitHub's `main` HEAD SHA with the stored `head_sha`.
+   and compare GitHub's `main` commit graph with the stored `head_sha`. If the remote HEAD is a normal
+   descendant, refresh the local `head_sha` and continue; otherwise report the change and stop writes.
 4. If no valid binding exists, report the scan result and then ask for a repository name. The default is
    `infrastructure`; no repository is enumerated or guessed.
 
-This preflight does not create a repository, install packages, start login, or write local state. Those
-actions still use the approval gates below. A successful preflight may be summarized before the agent
-continues with the user's requested documentation task.
+This preflight does not create a repository, install packages, start login, or change binding metadata.
+It may only refresh `head_sha` after proving that GitHub `main` is a normal descendant of the stored
+checkpoint. All other local-state writes and all GitHub writes still use the approval gates below. A
+successful preflight may be summarized before the agent continues with the user's requested task.
 
 ## Read scope (hard rule)
 
@@ -249,8 +251,9 @@ the bound branch exists.
 
 | Observation | Status | Note |
 | --- | --- | --- |
-| probe succeeds | `ready` | scope it: "read access to `OWNER/REPO@main`" |
-| probe succeeds but GitHub `main` HEAD differs from local state | `changed-since-state` | report both SHAs and stop automatic writes |
+| probe succeeds and HEAD matches the checkpoint | `ready` | scope it: "read access to `OWNER/REPO@main`" |
+| probe succeeds and remote HEAD is a normal descendant | `ready` | refresh local `head_sha`, report the fast-forward and continue |
+| probe succeeds but remote HEAD is behind, diverged or rewritten | `changed-since-state` | report both SHAs and the comparison result; stop automatic writes |
 | `401` | `unauthenticated` | identity expired or absent |
 | `403` | `insufficient-permissions` | explicit refusal for that resource |
 | `404` | `unverified` | ambiguous — see below |
@@ -289,7 +292,8 @@ For a reused existing binding, `bootstrap.status` is `reused` and the initial SH
 
 - `repository`: `OWNER/REPO`
 - `branch`: the branch that was verified, normally `main`
-- `head_sha`: the latest verified commit at `main`; update it after every successful documentation commit
+- `head_sha`: the latest verified commit at `main`; update it after every successful documentation
+  commit and after a proven remote fast-forward on a new device
 
 Store it in the bundled helper's app-owned local state file. On macOS this is under
 `~/Library/Application Support/InfraKeeper/state.json`; on Windows it is under the user's
@@ -347,7 +351,7 @@ repository is `OWNER/REPO` on `main`; the requested work can now continue.
 | Status | Means | Does not mean |
 | --- | --- | --- |
 | `ready` | read verification of the bound repository succeeded on the CLI (S5 only) | write access, or permission beyond read |
-| `changed-since-state` | GitHub `main` has a different HEAD SHA than the local binding state | proof that the change is unauthorized |
+| `changed-since-state` | GitHub `main` is not a normal descendant of the local binding checkpoint | that the change is unauthorized; investigate the reported comparison |
 | `unavailable` | the CLI is absent or local command execution is unavailable | that the user has no GitHub access by another route |
 | `unauthenticated` | the CLI exists but presents no valid identity (`401`, no login) | that the account lacks repository permission |
 | `insufficient-permissions` | authenticated, and a read was explicitly refused (`403`) for that repository | that the token is invalid |

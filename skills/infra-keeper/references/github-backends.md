@@ -24,8 +24,9 @@ own rules, and the wizard does not restate them.
    established in the conversation, or that stored binding — and never guess an unrelated repository.
    A binding narrows reads to one repository; it never authorizes writes and never overrides an exclusion.
 2. When local commands are permitted, check `gh --version` and `gh auth status` (never print tokens).
-3. Read the bound repository's `main` HEAD SHA and compare it with local state before proceeding. A
-   mismatch is reported and automatic writes stop until the current state is reviewed.
+3. Read the bound repository's `main` HEAD SHA and compare its commit graph with local state before
+   proceeding. If the remote HEAD is a normal descendant of the stored checkpoint, advance local state
+   and continue. If it is behind, diverged or rewritten, report the mismatch and stop automatic writes.
 4. Require the bound repository owner to match the authenticated user's GitHub login. Organization,
    collaborator and other-user repositories are outside this backend's scope, even when the account
    has access to them.

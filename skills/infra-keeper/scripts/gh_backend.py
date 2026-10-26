@@ -268,9 +268,23 @@ def current_file(owner: str, repo: str, path: str, ref: str) -> dict[str, Any]:
 def head_sha(owner: str, repo: str, ref: str) -> str:
     result = gh_api(endpoint(owner, repo, f"git/ref/heads/{ref}"))
     try:
-        return result["object"]["sha"]
+        return sha(result["object"]["sha"], "remote-head-sha")
     except (KeyError, TypeError) as exc:
         raise BackendError("GitHub returned an unexpected branch reference") from exc
+
+
+def compare_heads(owner: str, repo: str, base: str, head: str) -> dict[str, Any]:
+    result = gh_api(endpoint(owner, repo, f"compare/{base}...{head}"))
+    if not isinstance(result, dict):
+        raise BackendError("GitHub returned an unexpected commit comparison response")
+    status = result.get("status")
+    if status not in {"ahead", "behind", "diverged", "identical"}:
+        raise BackendError("GitHub returned an unknown commit comparison status")
+    ahead_by = result.get("ahead_by")
+    behind_by = result.get("behind_by")
+    if not isinstance(ahead_by, int) or not isinstance(behind_by, int):
+        raise BackendError("GitHub returned invalid commit comparison counts")
+    return {"status": status, "ahead_by": ahead_by, "behind_by": behind_by}
 
 
 def check_head(owner: str, repo: str, ref: str, expected: str | None) -> None:
@@ -375,6 +389,58 @@ def update_binding_head(args: argparse.Namespace) -> dict[str, Any]:
         "repository": f"{owner}/{repo}",
         "branch": ref,
         "head_sha": new_head,
+    }
+
+
+def sync_binding_head(args: argparse.Namespace) -> dict[str, Any]:
+    owner, repo = repository(args.owner, args.repo)
+    ref = branch(args.branch)
+    if ref != "main":
+        raise BackendError("InfraKeeper bindings must use the main branch")
+    enforce_personal_repository(owner, repo)
+    state = load_state()
+    if state is None:
+        raise BackendError("local InfraKeeper binding state is absent")
+    stored_owner, stored_repo = split_repository(state["binding"]["repository"])
+    if (stored_owner.casefold(), stored_repo.casefold()) != (owner.casefold(), repo.casefold()):
+        raise BackendError("local binding does not match the requested repository")
+    stored_head = state["binding"].get("head_sha")
+    current_head = head_sha(owner, repo, ref)
+    if stored_head is None:
+        return {
+            "action": "sync-binding-head",
+            "status": "missing-checkpoint",
+            "repository": f"{owner}/{repo}",
+            "branch": ref,
+            "head_sha": current_head,
+            "state_updated": False,
+        }
+    comparison = compare_heads(owner, repo, stored_head, current_head)
+    if comparison["status"] in {"identical", "ahead"} and comparison["behind_by"] == 0:
+        state["version"] = STATE_VERSION
+        state["binding"]["head_sha"] = current_head
+        state_updated = current_head != stored_head
+        if state_updated:
+            save_state(state)
+        return {
+            "action": "sync-binding-head",
+            "status": "ready",
+            "repository": f"{owner}/{repo}",
+            "branch": ref,
+            "previous_head_sha": stored_head,
+            "head_sha": current_head,
+            "comparison": comparison,
+            "state_updated": state_updated,
+        }
+    return {
+        "action": "sync-binding-head",
+        "status": "changed-since-state",
+        "repository": f"{owner}/{repo}",
+        "branch": ref,
+        "previous_head_sha": stored_head,
+        "head_sha": current_head,
+        "comparison": comparison,
+        "state_updated": False,
     }
 
 
@@ -633,6 +699,11 @@ def build_parser() -> argparse.ArgumentParser:
     state_head_parser.add_argument("--head-sha", required=True)
     state_head_parser.add_argument("--verified", action="store_true")
     state_head_parser.set_defaults(handler=update_binding_head)
+
+    state_sync_parser = subparsers.add_parser("sync-binding-head")
+    add_repository_args(state_sync_parser)
+    state_sync_parser.add_argument("--branch", default="main")
+    state_sync_parser.set_defaults(handler=sync_binding_head)
 
     info_parser = subparsers.add_parser("repository")
     add_repository_args(info_parser)

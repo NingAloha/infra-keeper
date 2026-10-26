@@ -59,9 +59,10 @@ is verified and bound, later setup runs only re-check it and never create anothe
 After a successful verification, the bundled helper writes a small local state file containing only the
 binding metadata, `main` branch, the last confirmed GitHub `main` HEAD SHA, bootstrap status and optional
 initial commit SHA. Successful documentation commits update that checkpoint from GitHub's returned SHA.
-A new Hermes session reads the file before repository work or asking for a name, compares it with GitHub
-through `gh`, and stops automatic writes when GitHub has changed since the checkpoint. The file contains
-no token, credential data or repository contents.
+A new Hermes session reads the file before repository work or asking for a name. If GitHub's `main` is a
+normal descendant of the local checkpoint, Hermes advances the checkpoint and continues the ready flow.
+If the remote branch was rewound, diverged or rewritten, it reports the change and stops automatic writes.
+The file contains no token, credential data or repository contents.
 
 ## Reload after an update
 

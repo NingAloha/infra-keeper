@@ -22,6 +22,7 @@ When the host can execute packaged scripts, prefer:
 python3 skills/infra-keeper/scripts/gh_backend.py authenticated-user
 python3 skills/infra-keeper/scripts/gh_backend.py read-state
 python3 skills/infra-keeper/scripts/gh_backend.py repository-head --owner OWNER --repo REPO --branch main
+python3 skills/infra-keeper/scripts/gh_backend.py sync-binding-head --owner OWNER --repo REPO --branch main
 python3 skills/infra-keeper/scripts/gh_backend.py repository --owner OWNER --repo REPO
 python3 skills/infra-keeper/scripts/gh_backend.py create-repository --owner OWNER --repo REPO --approved
 python3 skills/infra-keeper/scripts/gh_backend.py write-binding --owner OWNER --repo REPO --branch main --bootstrap-status created --initial-commit-sha INITIAL_SHA --head-sha HEAD_SHA --verified
@@ -36,11 +37,12 @@ requires the requested repository owner to match the authenticated user's GitHub
 credentials in `gh`'s own credential mechanism. Its `create-repository` command is only for the
 first-run bootstrap, defaults to a private repository with `--add-readme`, and requires `--approved`.
 Its `read-state`, `write-binding` and `update-binding-head` commands manage only the local non-secret
-binding state. `repository-head` reads the exact `main` HEAD SHA. Write the initial binding only after
+binding state. `repository-head` reads the exact `main` HEAD SHA. `sync-binding-head` compares the
+stored checkpoint with GitHub's commit graph and updates local state only when the remote `main` is a
+normal descendant; it returns `changed-since-state` without updating state for a rewind, divergence or
+history rewrite. Write the initial binding only after
 the repository metadata, `main` HEAD and root listing have passed S5; `--verified` is a required guard.
-After a direct Git commit and push, call `update-binding-head` with the verified remote SHA. The state
-file is local to the host and is not committed to GitHub.
-It supports `create-or-update-file` and
+The state file is local to the host and is not committed to GitHub. It supports `create-or-update-file` and
 `delete-file` only with `--approved`; updates require `--expected-sha`, deletes always require a
 matching `--expected-sha`, and both can check `--expected-head-sha`. Use a temporary content file for
 larger approved documents rather than putting sensitive values in command arguments.
@@ -81,27 +83,24 @@ one would be refused.
 
 ## Writes: approval first
 
-For an approved documentation change, prefer a local checked-out repository and ordinary *non-force* commits when the working tree and branch are known. These are **illustrative**, not unattended commands:
+For an approved documentation change, use the bundled helper so the commit is created directly on
+GitHub through `gh`. These commands are **illustrative**, not unattended commands:
 
 ```sh
-git status --short
-git branch --show-current
-git fetch origin main
-git status --porcelain
-# review the approved diff and confirm the current main has not changed
-git diff --check
-git diff -- path/to/approved-file.md
-# stage only explicitly approved paths; commit and push only after approval
-git add -- path/to/approved-file.md
-git commit -m "docs: update approved infrastructure record"
-git push origin main
-# after the push, verify remote main and update the local binding SHA
-python3 skills/infra-keeper/scripts/gh_backend.py update-binding-head --owner OWNER --repo REPO --branch main --head-sha HEAD_SHA --verified
+# review the approved file and confirm the current remote main has not changed
+python3 skills/infra-keeper/scripts/gh_backend.py get-file --owner OWNER --repo REPO --path path/to/approved-file.md --branch main
+# create or update directly on GitHub only after approval and SHA checks
+python3 skills/infra-keeper/scripts/gh_backend.py create-or-update-file --owner OWNER --repo REPO --branch main --path path/to/approved-file.md --content-file /tmp/approved-file.md --commit-message "docs: update approved infrastructure record" --approved --expected-head-sha HEAD_SHA
 ```
 
-Do not run `git add -A`, `git push --force`, or commit unrelated local changes. If the tree is dirty, `main` differs from the expected upstream, or a concurrent update occurs, stop and reassess. Verify remote files and the final commit via GitHub read operations after pushing.
+The helper updates the local checkpoint from the returned GitHub commit SHA after a successful write.
+If the remote HEAD or file SHA changes during preparation, stop and reassess. Verify remote files and
+the final commit through GitHub reads after the write.
 
-Alternatively, a client may use approved `gh api` GitHub Contents API or Git Tree/Commit API calls, but must respect version SHA preconditions and partial-update risks. See [Version preconditions (measured)](#version-preconditions-measured) for what has actually been observed on this endpoint and what has not. Never encode secret values into shell command arguments, files or logs.
+Alternatively, a client may use approved direct `gh api` GitHub Contents API or Git Tree/Commit API
+calls, but must respect version SHA preconditions and partial-update risks. See [Version preconditions (measured)](#version-preconditions-measured)
+for what has actually been observed on this endpoint and what has not. Never encode secret values into
+shell command arguments, files or logs.
 
 ## Restrictions
 
