@@ -156,8 +156,8 @@ Rules:
 ## S2 — choose the CLI path
 
 There is one backend: local GitHub CLI. If local commands are unavailable or policy-denied, explain
-the gap and finish at S6 with `unavailable`. The bundled JSON helper and direct `gh` commands share
-the same identity; the helper is preferred when it can run.
+the gap and finish at S6 with `unavailable`. All supported repository operations go through the bundled
+JSON helper; if it cannot run, report the capability gap and do not substitute raw `gh` commands.
 
 ## S3 — CLI detection, installation guidance and authentication
 
@@ -287,7 +287,8 @@ Keep the record minimal and non-secret. The bundled helper stores a versioned JS
 
 ```json
 {
-  "version": 4,
+  "version": 5,
+  "revision": 0,
   "binding": {
     "repository": "OWNER/REPO",
     "branch": "main",
@@ -302,6 +303,7 @@ Keep the record minimal and non-secret. The bundled helper stores a versioned JS
 For a reused existing binding, `bootstrap.status` is `reused` and the initial SHA may be absent.
 
 - `repository`: `OWNER/REPO`
+- `revision`: a local optimistic version used with the state-file lock; it is not a GitHub commit or permission.
 - `branch`: the canonical branch that was verified, always `main`
 - `branches`: map each tracked branch to its latest verified HEAD SHA; `main` is the default checkpoint
   and is refreshed on every session

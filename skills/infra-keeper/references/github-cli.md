@@ -26,6 +26,8 @@ python3 skills/infra-keeper/scripts/gh_backend.py sync-binding-head --owner OWNE
 # only when the current task discusses an existing device branch
 python3 skills/infra-keeper/scripts/gh_backend.py sync-binding-head --owner OWNER --repo REPO --branch infra/device/DEVICE_ID --activate
 python3 skills/infra-keeper/scripts/gh_backend.py bind-device --owner OWNER --repo REPO --device-id DEVICE_ID --verified
+# only when changing the existing device identity, after separate approval
+python3 skills/infra-keeper/scripts/gh_backend.py bind-device --owner OWNER --repo REPO --device-id NEW_DEVICE_ID --verified --rebind-device --approved
 python3 skills/infra-keeper/scripts/gh_backend.py ensure-device-branch --owner OWNER --repo REPO --main-head-sha MAIN_HEAD_SHA --approved
 python3 skills/infra-keeper/scripts/gh_backend.py repository --owner OWNER --repo REPO
 python3 skills/infra-keeper/scripts/gh_backend.py create-repository --owner OWNER --repo REPO --setup --approved
@@ -33,6 +35,7 @@ python3 skills/infra-keeper/scripts/gh_backend.py write-binding --owner OWNER --
 python3 skills/infra-keeper/scripts/gh_backend.py get-file --owner OWNER --repo REPO --path README.md --branch main
 python3 skills/infra-keeper/scripts/gh_backend.py list-directory --owner OWNER --repo REPO --branch main
 python3 skills/infra-keeper/scripts/gh_backend.py list-commits --owner OWNER --repo REPO --branch main
+python3 skills/infra-keeper/scripts/gh_backend.py list-device-branches --owner OWNER --repo REPO
 ```
 
 The helper calls `gh api` without a shell, emits machine-readable JSON, validates repository paths,
@@ -42,7 +45,10 @@ first-run bootstrap, always creates a private repository with `--add-readme`, an
 `--approved`. Ordinary reads must match the local binding; `--setup` and `--rebind` are the only
 verification-read exceptions. `write-binding` likewise requires an explicit `--setup` or `--rebind` mode.
 Its `read-state`, `write-binding` and `bind-device` commands manage only the local
-non-secret binding state. `repository-head` reads a branch HEAD. `sync-binding-head` compares the stored
+non-secret binding state. Changing an existing device identity requires `--rebind-device --approved` as a
+separate approval; it does not create or modify the remote branch. `repository-head` reads a branch HEAD.
+`list-device-branches` enumerates only `infra/device/<device-id>` branches for cross-device reads and does not
+activate their local checkpoints. `sync-binding-head` compares the stored
 checkpoint for the requested branch with GitHub's commit graph and updates local state only when the
 remote branch is a normal descendant; it returns `changed-since-state` without updating state for a
 rewind, divergence or history rewrite. `bind-device` records the device-local branch identity, and
@@ -65,14 +71,9 @@ branches or synchronize every device branch during preflight.
 
 ## Read operations (no mutation)
 
-```sh
-gh repo view OWNER/REPO --json nameWithOwner,defaultBranchRef
-gh api repos/OWNER/REPO/contents/README.md -f ref=main --method GET
-gh api repos/OWNER/REPO/commits?sha=main --method GET
-gh api repos/OWNER/REPO/git/trees/main -f recursive=1 --method GET
-```
-
-Use `gh api` or the bundled helper for repository reads and inspect returned data carefully. Before a direct `gh` fallback, run `gh api user`, compare its `login` with the requested `OWNER`, and stop on a mismatch. Avoid printing authentication headers, sensitive URLs, or secret-bearing raw logs. Check whether the repository actually has a `main` branch before proceeding.
+Use the bundled helper for repository reads and inspect returned data carefully. If the helper cannot run,
+report the capability gap and stop. Avoid printing authentication headers, sensitive URLs, or secret-bearing
+raw logs. Check whether the repository actually has a `main` branch before proceeding.
 
 ## Version preconditions (measured)
 
@@ -114,8 +115,7 @@ The canonical `main` checkpoint is updated only by the normal session preflight.
 file SHA changes during preparation, stop and reassess. Verify the final branch contents through GitHub
 reads after the write.
 
-Alternatively, a client may use approved direct `gh api` GitHub Contents API or Git Tree/Commit API
-calls, but must respect version SHA preconditions and partial-update risks. See [Version preconditions (measured)](#version-preconditions-measured)
+There is no direct `gh api` fallback for documentation operations. See [Version preconditions (measured)](#version-preconditions-measured)
 for what has actually been observed on this endpoint and what has not. Never encode secret values into
 shell command arguments, files or logs.
 

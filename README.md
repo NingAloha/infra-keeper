@@ -37,7 +37,8 @@ or stores a token.
 
 After S5 succeeds, InfraKeeper stores only binding metadata in a local app state file: the repository,
 canonical `main` branch, a per-branch HEAD map, this device's ID and branch, bootstrap status and optional
-initial commit SHA. A new agent session validates and advances `main` by default; a device branch checkpoint
+initial commit SHA. The state file uses a local lock and revision check so concurrent Agent processes do not
+silently overwrite one another. A new agent session validates and advances `main` by default; a device branch checkpoint
 is activated only when the current task discusses that device. Device documentation is written only to its
 own branch and is never merged into `main`, so device writes do not create merge conflicts. It never stores
 tokens, `gh` credentials or repository contents.
@@ -76,14 +77,17 @@ See [Hermes Desktop integration notes](docs/hermes.md) for setup guidance.
 
 - `main` contains only canonical navigation and shared entry points; each device writes only its own `infra/device/<device-id>` branch and never merges it into `main`.
 - A device branch is read and synchronized only when that device is in the current task; shared cross-device content is not silently written to a device branch.
+- Cross-device queries start from `main`, enumerate `infra/device/<device-id>` branches, and read only the relevant branches without activating or updating other devices' local checkpoints.
 - Device information comes from user-run read-only checks and selected results they provide; the Agent does not scan or operate the user's device directly.
 - The target repository owner must match the authenticated `gh` user; organization, collaborator and other-user repositories are out of scope.
 - After binding, ordinary reads are restricted to the locally bound repository; only first-run setup and an explicit rebind flow may inspect another personal repository.
+- Changing the bound device identity requires an explicit device-rebind flow and separate approval; it does not create or modify a remote device branch automatically.
 - On the first run with no binding, create one private personal repository only after separate approval; later setup runs never create another repository.
 - Reads, searches, history and status checks may be automatic.
 - **Every write** requires specific prior approval of the proposed path(s), content/diff, impact and rollback.
 - Check for concurrent edits before writing; re-read the commit and changed files afterward.
 - Do not force-push, rewrite history, change repository administration, or switch backends to bypass a denial.
+- All GitHub operations go through the bundled `gh` helper. If it cannot run, report the capability gap instead of using an unguarded direct `gh api` fallback.
 - Repository documentation is **historical evidence**, not proof of current service health.
 - Never commit credentials, private keys, tokens, or sensitive infrastructure details to public examples.
 

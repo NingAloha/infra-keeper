@@ -30,11 +30,11 @@ own rules, and the wizard does not restate them.
 4. Require the bound repository owner to match the authenticated user's GitHub login. Organization,
    collaborator and other-user repositories are outside this backend's scope, even when the account
    has access to them.
-5. Prefer the bundled JSON CLI helper for structured operations; use direct `gh` commands only as a disclosed fallback.
+5. Use the bundled JSON CLI helper for all supported GitHub operations. If it cannot run, report the capability gap and stop; do not use a direct `gh api` fallback.
 6. State the selected CLI path and scope before operations.
 7. Backend choice **does not** supersede approval, account permissions, platform rules, branch restrictions, or GitHub protections.
 
-A missing CLI capability can justify using the helper's direct `gh` fallback. A **denied operation** cannot: stop instead of trying another channel to bypass it.
+A missing helper capability is a setup or packaging problem to report, not permission to bypass the helper with raw GitHub CLI calls. A **denied operation** also requires stopping rather than trying another channel.
 
 ## Common behavioral contract
 

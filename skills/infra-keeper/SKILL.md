@@ -51,8 +51,8 @@ If it is behind, diverged or rewritten, report the remote change and stop automa
 the local file as GitHub permission.
 
 1. Use the local **GitHub CLI (`gh`)** only when shell access and a properly authenticated CLI are available.
-2. Prefer the bundled JSON CLI helper described in [GitHub CLI instructions](references/github-cli.md#bundled-json-cli-helper) for structured reads and device-branch writes.
-3. If the helper cannot run, use direct `gh` commands only when the host permits them and disclose that fallback.
+2. Use the bundled JSON CLI helper described in [GitHub CLI instructions](references/github-cli.md#bundled-json-cli-helper) for all supported GitHub reads and device-branch writes.
+3. If the helper cannot run, report the capability gap and stop GitHub operations. Do not use an unguarded direct `gh api` fallback.
 4. Do not silently change the execution path, and **never switch to another backend to evade a tool denial, policy prohibition, safety rejection, or access-control restriction**.
 
 Read [CLI instructions](references/github-cli.md) according to the selected path. A Skill supplies instructions; it cannot itself provision GitHub access or grant scopes.
@@ -73,7 +73,7 @@ For `devices/servers/<device-id>/`, follow [Server documentation](references/ser
 
 1. Use the user's explicit repository selection or the repository established in context. Otherwise discover accessible repositories; ask when ambiguous.
 2. Require the selected repository's owner to equal the authenticated GitHub user's login. Do not operate on organization, collaborator or another user's repositories, even when GitHub grants access.
-3. Read canonical navigation from `main`; on a device-scoped task, activate and read only that device's branch, and write only there. Never merge it into `main`.
+3. Read canonical navigation from `main`; on a device-scoped task, activate and read only that device's branch, and write only there. For a cross-device request, enumerate `infra/device/<device-id>` branches with the helper and read only the relevant branches without activating unrelated local checkpoints. Never merge them into `main`.
 4. Read the root inventory and relevant device/service README before specific system, network, operations, or service records.
 5. For inter-device requests read both endpoints and linked Service records; for public ingress, DNS, TLS or domain tasks read the owning Service's `access.md` and affected devices. Consult legacy `domains/routing.md` only where it still exists as an unmigrated record; never assume it is the new canonical domain layout.
 6. Distinguish **documented baseline**, **user report**, **timestamped live observation supplied by an authorized source**, and **unknown**. Repository text is never proof of present runtime health.
@@ -85,6 +85,7 @@ Follow [GitHub workflow](references/github-workflow.md):
 - Read/search/history/status: automatic in the selected or verified bound repository.
 - For creates/edits, an **explicit, bounded documentation-write request or approval already given in the conversation** satisfies authorization. Do not ask again after preparing the diff if it matches that approved intent, paths and risks. Mere inspection, terminal output, device-operation approval or discussion is not authorization.
 - One task-scoped approval may cover all related files. Delete/retire/move/rename, repository rebind, bulk restructuring, material scope expansion and corrective rollback require new, separate approval.
+- Changing the bound device identity requires the explicit device-rebind mode and its own approval; it does not authorize a repository rebind or remote branch mutation.
 - Require specific evidence-based Git commit subjects **and informative bodies** recording what changed in that commit, sources, dates, limitations and documentation-only impact. Git history is the change log; no extra operations diary.
 - Create only the bound device branch `infra/device/<device-id>`; do not create arbitrary branches.
 - Never merge device branches into `main`. Never create arbitrary branches, force-push, rewrite history

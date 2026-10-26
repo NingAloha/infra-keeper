@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+from contextlib import contextmanager
 import json
 import os
 import re
@@ -19,14 +20,19 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+if os.name == "nt":
+    import msvcrt
+else:
+    import fcntl
+
 
 GH_TIMEOUT_SECONDS = 30
 OWNER_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,38})$")
 REPO_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,99})$")
 SHA_RE = re.compile(r"^[0-9a-fA-F]{7,64}$")
 DEVICE_ID_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,31})$")
-STATE_VERSION = 4
-SUPPORTED_STATE_VERSIONS = {1, 2, 3, STATE_VERSION}
+STATE_VERSION = 5
+SUPPORTED_STATE_VERSIONS = {1, 2, 3, 4, STATE_VERSION}
 
 
 class BackendError(Exception):
@@ -65,6 +71,65 @@ def state_path() -> Path:
     return base / "state.json"
 
 
+def state_lock_path() -> Path:
+    return state_path().with_name("state.json.lock")
+
+
+@contextmanager
+def state_lock():
+    """Serialize local state replacement across concurrent helper processes."""
+    path = state_path()
+    lock_path = state_lock_path()
+    try:
+        path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        try:
+            path.parent.chmod(0o700)
+        except OSError:
+            pass
+        with lock_path.open("a+") as handle:
+            try:
+                lock_path.chmod(0o600)
+            except OSError:
+                pass
+            if os.name == "nt":
+                handle.seek(0)
+                handle.write("0")
+                handle.flush()
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
+            else:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                if os.name == "nt":
+                    handle.seek(0)
+                    msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+                else:
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+    except OSError as exc:
+        raise BackendError(f"could not lock local InfraKeeper state: {redact(str(exc))}") from exc
+
+
+def disk_state_revision(path: Path) -> int | None:
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        raise BackendError(f"could not read local InfraKeeper state: {redact(str(exc))}") from exc
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise BackendError("local InfraKeeper state is not valid JSON") from exc
+    if not isinstance(value, dict):
+        raise BackendError("local InfraKeeper state is not a JSON object")
+    revision = value.get("revision", 0)
+    if isinstance(revision, bool) or not isinstance(revision, int) or revision < 0:
+        raise BackendError("local InfraKeeper state has an invalid revision")
+    return revision
+
+
 def split_repository(value: Any) -> tuple[str, str]:
     value = required_text(value, "repository")
     parts = value.split("/")
@@ -97,6 +162,9 @@ def load_state() -> dict[str, Any] | None:
     if not isinstance(bootstrap, dict) or bootstrap.get("status") not in {"created", "reused"}:
         raise BackendError("local InfraKeeper state has no valid bootstrap status")
     branches: dict[str, str] = {}
+    revision = value.get("revision", 0)
+    if isinstance(revision, bool) or not isinstance(revision, int) or revision < 0:
+        raise BackendError("local InfraKeeper state has an invalid revision")
     if isinstance(binding.get("branches"), dict):
         for branch_name, branch_head in binding["branches"].items():
             branches[branch(branch_name)] = sha(branch_head, f"{branch_name}-head-sha")
@@ -104,6 +172,7 @@ def load_state() -> dict[str, Any] | None:
         branches["main"] = sha(binding["head_sha"], "head-sha")
     normalized: dict[str, Any] = {
         "version": STATE_VERSION,
+        "revision": revision,
         "binding": {"repository": f"{owner}/{repo}", "branch": "main", "branches": branches},
         "bootstrap": {"status": bootstrap["status"]},
     }
@@ -125,34 +194,38 @@ def load_state() -> dict[str, Any] | None:
     return normalized
 
 
-def save_state(value: dict[str, Any]) -> None:
+def save_state(value: dict[str, Any], *, expected_revision: int | None) -> None:
     path = state_path()
     temporary: Path | None = None
     try:
-        path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-        try:
-            path.parent.chmod(0o700)
-        except OSError:
-            pass
-        with tempfile.NamedTemporaryFile(
-            mode="w",
-            encoding="utf-8",
-            dir=path.parent,
-            prefix="state.",
-            suffix=".tmp",
-            delete=False,
-        ) as handle:
-            temporary = Path(handle.name)
-            json.dump(value, handle, ensure_ascii=False, indent=2, sort_keys=True)
-            handle.write("\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, path)
-        temporary = None
-        try:
-            path.chmod(0o600)
-        except OSError:
-            pass
+        with state_lock():
+            current_revision = disk_state_revision(path)
+            if current_revision != expected_revision:
+                raise BackendError(
+                    "local InfraKeeper state changed concurrently; re-read state before continuing"
+                )
+            value = dict(value)
+            value["version"] = STATE_VERSION
+            value["revision"] = 0 if current_revision is None else current_revision + 1
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=path.parent,
+                prefix="state.",
+                suffix=".tmp",
+                delete=False,
+            ) as handle:
+                temporary = Path(handle.name)
+                json.dump(value, handle, ensure_ascii=False, indent=2, sort_keys=True)
+                handle.write("\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, path)
+            temporary = None
+            try:
+                path.chmod(0o600)
+            except OSError:
+                pass
     except OSError as exc:
         raise BackendError(f"could not write local InfraKeeper state: {redact(str(exc))}") from exc
     finally:
@@ -418,6 +491,39 @@ def branch_head(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
+def list_device_branches(args: argparse.Namespace) -> dict[str, Any]:
+    owner, repo = repository(args.owner, args.repo)
+    enforce_personal_repository(owner, repo)
+    require_read_scope(args, owner, repo)
+    result = gh_api(endpoint(owner, repo, "git/matching-refs/heads/infra/device/"))
+    if result is None:
+        result = []
+    if not isinstance(result, list):
+        raise BackendError("GitHub returned an unexpected device-branch response")
+    branches: list[dict[str, str]] = []
+    for item in result:
+        if not isinstance(item, dict):
+            raise BackendError("GitHub returned an invalid device-branch entry")
+        raw_ref = item.get("ref")
+        if not isinstance(raw_ref, str) or not raw_ref.startswith("refs/heads/"):
+            continue
+        ref = raw_ref.removeprefix("refs/heads/")
+        if not is_device_branch(ref):
+            continue
+        obj = item.get("object")
+        if not isinstance(obj, dict):
+            raise BackendError("GitHub returned no object for a device branch")
+        branches.append(
+            {
+                "device_id": ref.removeprefix("infra/device/"),
+                "branch": ref,
+                "head_sha": sha(obj.get("sha"), "device-branch-head-sha"),
+            }
+        )
+    branches.sort(key=lambda item: item["device_id"].casefold())
+    return {"action": "list-device-branches", "repository": f"{owner}/{repo}", "branches": branches}
+
+
 def repository_info(args: argparse.Namespace) -> Any:
     owner, repo = repository(args.owner, args.repo)
     enforce_personal_repository(owner, repo)
@@ -464,6 +570,7 @@ def bind_device(args: argparse.Namespace) -> dict[str, Any]:
     ref = branch(args.branch)
     if ref != "main":
         raise BackendError("InfraKeeper bindings must use the main branch")
+    enforce_personal_repository(owner, repo)
     state = load_state()
     if state is None:
         raise BackendError("local InfraKeeper binding state is absent")
@@ -471,16 +578,33 @@ def bind_device(args: argparse.Namespace) -> dict[str, Any]:
     if (stored_owner.casefold(), stored_repo.casefold()) != (owner.casefold(), repo.casefold()):
         raise BackendError("local binding does not match the requested repository")
     current_device_id = device_id(args.device_id)
+    previous_device_id = state["binding"].get("device_id")
+    if previous_device_id is not None:
+        previous_device_id = device_id(previous_device_id)
+        if previous_device_id != current_device_id:
+            if not args.rebind_device:
+                raise BackendError(
+                    "changing the bound device requires the explicit --rebind-device flow"
+                )
+            if not args.approved:
+                raise BackendError(
+                    "--approved is required for the separate device rebind approval"
+                )
+        elif args.rebind_device:
+            raise BackendError("--rebind-device is only valid when changing the device identity")
+    elif args.rebind_device:
+        raise BackendError("--rebind-device requires an existing bound device")
     state["version"] = STATE_VERSION
     state["binding"]["device_id"] = current_device_id
     state["binding"]["device_branch"] = device_branch(current_device_id)
     state["binding"].pop("device_head_sha", None)
-    save_state(state)
+    save_state(state, expected_revision=state["revision"])
     return {
         "action": "bind-device",
         "repository": f"{owner}/{repo}",
         "device_id": current_device_id,
         "device_branch": device_branch(current_device_id),
+        "rebound": previous_device_id is not None and previous_device_id != current_device_id,
     }
 
 
@@ -519,7 +643,7 @@ def ensure_device_branch(args: argparse.Namespace) -> dict[str, Any]:
             )
     state["version"] = STATE_VERSION
     set_branch_checkpoint(state, ref, current_branch)
-    save_state(state)
+    save_state(state, expected_revision=state["revision"])
     return {
         "action": "ensure-device-branch",
         "repository": f"{owner}/{repo}",
@@ -549,7 +673,7 @@ def sync_binding_head(args: argparse.Namespace) -> dict[str, Any]:
         if args.activate:
             state["version"] = STATE_VERSION
             set_branch_checkpoint(state, ref, current_head)
-            save_state(state)
+            save_state(state, expected_revision=state["revision"])
             return {
                 "action": "sync-binding-head",
                 "status": "ready",
@@ -575,7 +699,7 @@ def sync_binding_head(args: argparse.Namespace) -> dict[str, Any]:
         set_branch_checkpoint(state, ref, current_head)
         state_updated = current_head != stored_head
         if state_updated:
-            save_state(state)
+            save_state(state, expected_revision=state["revision"])
         return {
             "action": "sync-binding-head",
             "status": "ready",
@@ -614,7 +738,7 @@ def record_bound_head(owner: str, repo: str, ref: str, new_head: str) -> dict[st
         return {"state_updated": False, "state_update_reason": "binding branch does not match repository"}
     set_branch_checkpoint(state, ref, new_head)
     try:
-        save_state(state)
+        save_state(state, expected_revision=state["revision"])
     except BackendError as exc:
         return {"state_updated": False, "state_update_reason": redact(str(exc))}
     return {"state_updated": True}
@@ -653,7 +777,10 @@ def write_binding(args: argparse.Namespace) -> dict[str, Any]:
         },
         "bootstrap": bootstrap,
     }
-    save_state(value)
+    save_state(
+        value,
+        expected_revision=existing_state["revision"] if existing_state is not None else None,
+    )
     return {
         "action": "write-state",
         "repository": f"{owner}/{repo}",
@@ -894,6 +1021,8 @@ def build_parser() -> argparse.ArgumentParser:
     device_bind_parser.add_argument("--branch", default="main")
     device_bind_parser.add_argument("--device-id", required=True)
     device_bind_parser.add_argument("--verified", action="store_true")
+    device_bind_parser.add_argument("--rebind-device", action="store_true")
+    device_bind_parser.add_argument("--approved", action="store_true")
     device_bind_parser.set_defaults(handler=bind_device)
 
     state_sync_parser = subparsers.add_parser("sync-binding-head")
@@ -936,6 +1065,11 @@ def build_parser() -> argparse.ArgumentParser:
     add_ref_args(branch_head_parser)
     add_read_scope_args(branch_head_parser)
     branch_head_parser.set_defaults(handler=branch_head)
+
+    device_branches_parser = subparsers.add_parser("list-device-branches")
+    add_repository_args(device_branches_parser)
+    add_read_scope_args(device_branches_parser)
+    device_branches_parser.set_defaults(handler=list_device_branches)
 
     device_branch_parser = subparsers.add_parser("ensure-device-branch")
     add_repository_args(device_branch_parser)

@@ -21,7 +21,7 @@ workflow, even when GitHub grants the account access.
 
 ## Read-first procedure
 
-1. Resolve target repository and canonical `main`. If it has no `main`, do not create or alter branches automatically; ask for an appropriate path forward. When the task discusses a device, resolve and activate only that device's stored branch; do not synchronize other device branches.
+1. Resolve target repository and canonical `main`. If it has no `main`, do not create or alter branches automatically; ask for an appropriate path forward. When the task discusses a device, resolve and activate only that device's stored branch; do not synchronize other device branches. For a cross-device request, enumerate device branches with `list-device-branches`, then read the relevant branches without activating their local checkpoints.
 2. Read the root README/inventory, target device index and relevant service, system, network and route records.
 3. Read available history where chronology or conflicting records matter.
 4. Separate documented facts, newly reported information, verified observations and unresolved assumptions.
@@ -34,6 +34,7 @@ An **explicit user instruction in the current conversation** can authorize a bou
 - **Authorized without a second prompt:** "Record the just-verified Ruby version for mba-m4-01", "Update those two documentation files as we discussed", or approval of a concrete proposed creation/update. Resolve target paths from the existing binding and device context; read their latest content; perform only the naturally implied, evidenced, low-risk documentation edit. Explain the change briefly before writing when its details are not already visible. A diff need not become an extra confirmation ceremony.
 - **Not authorized:** merely supplying terminal output, asking what a result means, discussing an installation plan, generic standing access, or saying that the agent may maintain everything indefinitely. Prepare a specific proposal and ask once.
 - **Always separately confirm:** deleting or retiring records, moving/renaming files, bulk restructuring, rebinding repositories, expanding to additional devices/repos, materially changing the approved plan, or writing sensitive or consequential information. Never store secrets even with approval.
+- Changing the bound device identity is a separate device-rebind operation: it requires `bind-device --rebind-device --approved`, does not authorize repository rebinding, and does not create or modify the remote device branch.
 - **Scope:** authorization applies to the task as described, including the necessary related documentation files, and expires when that task is completed or materially changes. For a multi-file task, one clearly scoped approval covers the related writes; never insist on one approval per file. If approval names only one path, do not silently add others.
 - **Safeguards independent of approval:** check `main`, current branch HEAD and file versions, apply backend-supported preconditions, guard against accidental creation/overwrite, review sensitive data, verify commits and contents, and report partial writes. If baseline changes during preparation, stop and re-evaluate under the conflict rules.
 
@@ -68,7 +69,7 @@ This gate is part of every approved documentation transaction, not an optional a
 5. **Commit and verify:** only after PASS, submit the approved update to the active device branch with backend-supported version preconditions; read back the branch contents, compare to the prepared candidate, re-check changed/affected links, and update only that branch's local checkpoint. A failed branch write or local-state update is a reported partial failure, not grounds for an unauthorized repair. The first-run repository bootstrap is a separate creation transaction and must be verified before binding.
 6. **Report exact units:** commits, changed files, correction commits, corrected issues and remaining failures are distinct counts. Separate task validation, optional whole-repository validation and runtime/service acceptance.
 
-A pre-write local or agent-side check never supplies a server-side concurrency guarantee. Continue using the conditional-update/conflict rules below.
+A pre-write local or agent-side check never supplies a server-side concurrency guarantee. The helper's local state writes are serialized with a lock and optimistic revision check; a revision conflict still requires re-reading state and stopping the current operation. Continue using the conditional-update/conflict rules below.
 
 ## Execute approved change
 
@@ -116,9 +117,9 @@ A rejected write is a conflict signal, not a retry signal.
 
 The GitHub REST Contents API requires `sha` on delete. The bundled CLI helper re-reads the file,
 requires a matching `--expected-sha`, and sends that SHA with the delete request. A matching-value
-delete has been observed to succeed. Whether GitHub rejects a stale value on `DELETE` has not been
-tested, so do not present the helper's pre-read as a server-side guarantee; stop on a local mismatch
-and report any server rejection accurately.
+delete has been observed to succeed. A stale-value delete was also tested against an isolated temporary
+private repository and was rejected by GitHub with `409`; no delete commit was created. The helper still
+performs its local comparison first and must report any server rejection accurately.
 
 ## Recovery
 
