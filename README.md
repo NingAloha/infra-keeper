@@ -7,16 +7,17 @@ InfraKeeper is an experimental **Agent Plugin** that packages a standard **Agent
 ## Quick start
 
 1. Install this repository in a compatible Agent Plugin host (see below).
-2. Say **“初始化 InfraKeeper”** or **“Set up InfraKeeper”**. The Skill opens its setup wizard; with no
-   binding on the first run it bootstraps one personal repository, then only verifies it on later runs.
-3. The wizard first detects the local **GitHub CLI (`gh`)** in the Agent page. If it is missing, it
+2. After installation, start any relevant InfraKeeper task. The Agent automatically runs a read-only
+   preflight; you do not need to say “initialize” first. With no binding on the first run it opens the
+   bootstrap flow, then only verifies the binding on later runs.
+3. The preflight first detects the local **GitHub CLI (`gh`)** in the Agent page. If it is missing, it
    shows an official installation command and its effect; after approval, the Agent page runs it and
    re-checks.
-4. If the CLI is not authenticated, the wizard shows `gh auth login` and requests separate approval
+4. If the CLI is not authenticated, the setup flow shows `gh auth login` and requests separate approval
    before starting it in the Agent page. The user completes browser authorization. If the host cannot
    provide an interactive terminal, the wizard falls back to the user's terminal. It never receives,
    displays or stores a token.
-5. On the first run, choose a repository name; the default is `infrastructure`. If it already exists,
+5. If no local binding exists, choose a repository name; the default is `infrastructure`. If it already exists,
    the wizard asks for an unused name, requests one separate approval, creates a private personal
    repository, and verifies it. Later runs only verify the stored binding. It reports one CLI verdict:
    `ready`, `unavailable`, `unauthenticated`, `insufficient-permissions`, `out-of-scope` or `unverified`.
@@ -58,7 +59,7 @@ The plugin packaging is intended for [Agent Plugins](https://agent-plugins.org/s
 
 ## Installation and GitHub access
 
-Install this repository in a compatible Agent Plugin host, or load `skills/infra-keeper/` directly in an Agent Skills host. Installing the plugin does not silently install or authenticate GitHub CLI. Start the setup wizard; it detects `gh`, gives OS-specific official installation guidance when needed, and can run an exact installation or login command in the Agent page only after separate approval.
+Install this repository in a compatible Agent Plugin host, or load `skills/infra-keeper/` directly in an Agent Skills host. Installing the plugin does not silently install or authenticate GitHub CLI. On the first relevant task, the Agent automatically runs the setup preflight; it detects `gh`, gives OS-specific official installation guidance when needed, and can run an exact installation or login command in the Agent page only after separate approval.
 
 Choose one authorized backend:
 - **GitHub CLI (`gh`):** For local Agents with shell access, install and authenticate https://cli.github.com/ and verify with `gh auth status`.

@@ -1,22 +1,25 @@
 # Interactive setup wizard
 
-Guided configuration of GitHub CLI access for a first-time user. The flow is **read-only for GitHub
+Automatic preflight and guided configuration of GitHub CLI access. The flow is **read-only for GitHub
 after the personal repository is bootstrapped**. On the first run with no stored binding, it may
 create exactly one personal repository after a separate approval; later runs only verify that
-binding. This is the entry point for "初始化 InfraKeeper" / "set up InfraKeeper". It detects
+binding. It runs before the first relevant InfraKeeper task in a new agent session, and is also the
+entry point for "初始化 InfraKeeper" / "set up InfraKeeper". It detects
 whether `gh` is available, walks the user through installation and authentication one step at a
 time, and then creates or verifies the personal repository. It is not a device audit.
 
 ## Trigger
 
-Enter this flow when the user asks to initialize, set up, configure, connect or re-check InfraKeeper
-or its GitHub access, for example:
+Enter this flow automatically before the first relevant InfraKeeper task in a new agent session, or
+when the user explicitly asks to initialize, set up, configure, connect or re-check InfraKeeper or
+its GitHub access, for example:
 
 - `初始化 InfraKeeper`, `配置 InfraKeeper`, `连接 GitHub CLI`, `重新验证连接`
 - "set up InfraKeeper", "connect GitHub CLI", "re-verify access"
 
-Do not enter it for ordinary documentation work, and do not merge it into an audit run. If the user
-asks for an audit before setup, run this flow first: an audit needs a bound repository.
+Do not wait for an initialization phrase. Do not enter it for unrelated work, and do not merge it
+into an audit run. If the user asks for an audit before the preflight is ready, run this flow first:
+an audit needs a bound repository.
 
 ## Safety contract
 
@@ -46,6 +49,21 @@ mutations allowed by this flow:
 - Never treat this project's own repository as the user's infrastructure repository.
 - If a capability cannot be inspected, report `unverified`. Do not guess `ready` or `unavailable`.
 
+## Automatic preflight before conversation
+
+Before asking the user for setup information, run these read-only checks in the Agent page when local
+command execution is available:
+
+1. Read the local state with `gh_backend.py read-state`.
+2. Run `gh --version` and `gh auth status`; report only redacted readiness facts.
+3. If a valid local binding exists, verify only that `OWNER/REPO@main` and its root listing are readable.
+4. If no valid binding exists, report the scan result and then ask for a repository name. The default is
+   `infrastructure`; no repository is enumerated or guessed.
+
+This preflight does not create a repository, install packages, start login, or write local state. Those
+actions still use the approval gates below. A successful preflight may be summarized before the agent
+continues with the user's requested documentation task.
+
 ## Read scope (hard rule)
 
 Every read must clear the current rung of this ladder before it is made.
@@ -58,7 +76,7 @@ Every read must clear the current rung of this ladder before it is made.
 | after S4 names a candidate | that candidate only: existence/metadata; after creation, its `main` and contents |
 | at any time | nothing about a repository the user has not named |
 
-- Before the user names `OWNER/REPO`, do not enumerate repositories, list an account's repositories,
+- Before the user names `OWNER/REPO` or a valid local binding identifies it, do not enumerate repositories, list an account's repositories,
   search code, or read any repository's contents, branches or metadata. "Discover accessible
   repositories" is a rule for documentation work; it does not apply to this flow.
 - After binding, read only the bound repository. Do not read a second repository to compare, to
@@ -90,7 +108,7 @@ in both languages.
 
 | State | Purpose | Exit |
 | --- | --- | --- |
-| S0 idle | no setup in progress | user asks to initialize |
+| S0 idle | no setup in progress | first relevant task or explicit setup request |
 | S1 scan | detect host capabilities | always continues |
 | S2 select | confirm the CLI path | CLI selected or unavailable |
 | S3 CLI connection | binary presence, authentication, guidance | connection status recorded |

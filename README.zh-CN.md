@@ -7,13 +7,13 @@ InfraKeeper 是一个实验性的 **Agent Plugin**，封装了一份标准 **Age
 ## 快速开始
 
 1. 在兼容的 Agent Plugin 宿主中安装本仓库（见下文）。
-2. 输入 **「初始化 InfraKeeper」** 或 **「Set up InfraKeeper」**。Skill 会启动初始化向导；首次没有绑定
-   仓库时会引导创建一次个人仓库，之后只做校验。
-3. 向导会先在 Agent 页面检测本机 **GitHub CLI（`gh`）**。如果没有安装，它会根据你的系统
+2. 安装后直接提出任何相关的 InfraKeeper 任务。Agent 会自动先做一次只读预检，不需要先输入
+   「初始化」。首次没有绑定仓库时才会进入创建引导，之后只做校验。
+3. 预检会先在 Agent 页面检测本机 **GitHub CLI（`gh`）**。如果没有安装，它会根据你的系统
    展示官方安装命令和影响；你批准后，优先由 Agent 页面执行，完成后自动重新检测。
-4. 如果尚未登录，向导会在 Agent 页面展示 `gh auth login` 并请求单独批准；你在浏览器中完成
+4. 如果尚未登录，配置流程会在 Agent 页面展示 `gh auth login` 并请求单独批准；你在浏览器中完成
    授权即可。如果宿主不支持交互终端，才退回让你在本机终端执行。它不会接收、显示或保存 Token。
-5. 首次配置时给仓库起一个名字，默认是 `infrastructure`。如果该名字已存在，向导会要求换一个未
+5. 如果本地没有绑定状态，给仓库起一个名字，默认是 `infrastructure`。如果该名字已存在，向导会要求换一个未
    使用的名字；创建个人私有仓库前会单独请求一次批准。之后启动只验证已绑定的仓库。CLI 判定为：
    `ready`、`unavailable`、`unauthenticated`、`insufficient-permissions`、`out-of-scope` 或 `unverified`。
 
@@ -52,8 +52,8 @@ docs/hermes.md
 ## 安装与 GitHub 访问
 
 把本仓库安装到兼容的 Agent Plugin 宿主，或在 Agent Skills 宿主中直接加载 `skills/infra-keeper/`。
-**安装 Skill 或 Plugin 本身不会静默认证 GitHub 或修改本机配置。** 初始化向导会检测 `gh`；如果
-缺失，会给出 macOS、Windows 或 Linux 的官方安装路径。默认会在 Agent 页面确认后执行具体命令；
+**安装 Skill 或 Plugin 本身不会静默认证 GitHub 或修改本机配置。** 第一次提出相关任务时，Agent
+会自动预检 `gh`；如果缺失，会给出 macOS、Windows 或 Linux 的官方安装路径。默认会在 Agent 页面确认后执行具体命令；
 只有 Agent 宿主不支持命令执行或交互终端时，才让你在本机执行。认证同样需要单独批准，浏览器授权
 由你本人完成。
 

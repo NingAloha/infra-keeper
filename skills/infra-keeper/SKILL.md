@@ -1,17 +1,18 @@
 ---
 name: infra-keeper
-description: Initialize InfraKeeper, configure or re-verify GitHub CLI access (初始化、配置 GitHub CLI、重新验证连接), and maintain documented infrastructure using gh, including repository discovery, evidence review, workstation audit, guided user-executed changes and conversation-authorized documentation commits to main.
+description: Automatically preflight InfraKeeper and GitHub CLI on the first relevant request (无需先输入初始化), re-verify a stored binding, configure access when needed, and maintain documented infrastructure using gh, including repository discovery, evidence review, workstation audit, guided user-executed changes and conversation-authorized documentation commits to main.
 ---
 
 # InfraKeeper
 
 InfraKeeper helps an agent maintain a **versioned infrastructure documentation repository**. This foundation covers GitHub documentation operations, **not** live infrastructure changes.
 
-## Setup (first run)
+## Automatic preflight and setup
 
-When the user asks to initialize InfraKeeper, configure or connect GitHub CLI, or re-verify the
-existing connection, read [setup wizard](references/setup-wizard.md) and follow it. That flow is
-GitHub-read-only after first-run bootstrap: it inspects local command capability, detects `gh`, gives
+Before the first InfraKeeper task in a new agent session, read [setup wizard](references/setup-wizard.md)
+and run its automatic preflight. Do not require the user to say "initialize" first. An explicit request
+to initialize, configure, connect GitHub CLI or re-verify the existing connection also enters the same
+flow. That flow is GitHub-read-only after first-run bootstrap: it inspects local command capability, detects `gh`, gives
 checkpointed installation and authentication guidance, creates one personal repository when no
 binding exists and the user separately approves it, then reports CLI readiness. A local install,
 login or repository-creation command is allowed only as a separately approved, exact command.

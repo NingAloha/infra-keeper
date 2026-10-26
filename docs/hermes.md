@@ -35,9 +35,10 @@ performed through the GitHub API exposed by `gh`.
 
 ## Setup wizard on this installation
 
-The setup wizard is entered in natural language. After installing or updating the plugin, a request
-such as **「初始化 InfraKeeper」** or **"Set up InfraKeeper"** routes to the setup wizard instead of
-the documentation workflow.
+Before the first relevant InfraKeeper task in a new Hermes session, the agent automatically runs the
+setup preflight; the user does not need to say **「初始化 InfraKeeper」** first. Explicit requests such
+as **「初始化 InfraKeeper」** or **"Set up InfraKeeper"** also route to the same flow instead of the
+documentation workflow.
 
 The wizard checks local command capability and `gh` authentication. If `gh` is missing, it asks for
 the operating system, shows the exact official installation command and its effect, and requests
@@ -45,7 +46,7 @@ separate approval before running it. It then re-runs `gh --version`. If authenti
 it similarly shows `gh auth login` and requests a separate approval before starting it in the Agent
 page; the user completes the browser/device authorization. If Hermes cannot keep that command
 interactive, provide a terminal fallback. It does not inspect or configure credential files, shell
-profiles or repository content before the user names a repository.
+profiles or repository content before the local state identifies a binding or the user names a repository.
 
 After the user names a repository, Hermes verifies that its owner matches the authenticated GitHub
 login. Organization, collaborator and other-user repositories are rejected before repository reads.
