@@ -57,10 +57,10 @@ separate approval before creating a private repository with an initial README. A
 is verified and bound, later setup runs only re-check it and never create another repository.
 
 After a successful verification, the bundled helper writes a small local state file containing only the
-binding metadata, `main` branch, bootstrap status and optional initial commit SHA. A new Hermes session
-reads that file before repository work or asking for a name, then still re-verifies the recorded repository through `gh`.
-The file contains no token, credential data or repository contents. If Hermes cannot read or persist the
-file, the current run can still finish, but the next session may ask for the repository again.
+binding metadata, `main` branch, current `main` HEAD SHA, bootstrap status and optional initial commit
+SHA. Successful documentation commits update that HEAD SHA. A new Hermes session reads the file before
+repository work or asking for a name, compares it with GitHub through `gh`, and stops automatic writes
+when the values differ. The file contains no token, credential data or repository contents.
 
 ## Reload after an update
 

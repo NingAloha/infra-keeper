@@ -56,7 +56,8 @@ command execution is available:
 
 1. Read the local state with `gh_backend.py read-state`.
 2. Run `gh --version` and `gh auth status`; report only redacted readiness facts.
-3. If a valid local binding exists, verify only that `OWNER/REPO@main` and its root listing are readable.
+3. If a valid local binding exists, verify only that `OWNER/REPO@main` and its root listing are readable,
+   and compare GitHub's `main` HEAD SHA with the stored `head_sha`.
 4. If no valid binding exists, report the scan result and then ask for a repository name. The default is
    `infrastructure`; no repository is enumerated or guessed.
 
@@ -236,18 +237,20 @@ full target is the authenticated user's `OWNER/infrastructure`. The user may cho
    result and stop; do not create or rename a branch automatically.
 6. Report the visibility and continue to S5 for the root read. Only a successful S5 result creates
    the stored binding. After S5, write the local state atomically with the verified repository,
-   `main`, and bootstrap status (`created` for this path plus the initial commit SHA; `reused` for an
-   existing binding). A failure to write local state does not change the GitHub verdict, but must be
+   `main`, the verified HEAD SHA, and bootstrap status (`created` for this path plus the initial commit
+   SHA; `reused` for an existing binding). A failure to write local state does not change the GitHub verdict, but must be
    reported because the next session may ask for the repository again.
 
 ## S5 — repository verification
 
-Only after S4. The minimal probe is repository metadata plus a root listing of `OWNER/REPO` at `main`;
-that proves read access and that the bound branch exists.
+Only after S4. The minimal probe is repository metadata, the `main` HEAD SHA and a root listing of
+`OWNER/REPO` at `main`; that proves read access, identifies the exact branch version and confirms that
+the bound branch exists.
 
 | Observation | Status | Note |
 | --- | --- | --- |
 | probe succeeds | `ready` | scope it: "read access to `OWNER/REPO@main`" |
+| probe succeeds but GitHub `main` HEAD differs from local state | `changed-since-state` | report both SHAs and stop automatic writes |
 | `401` | `unauthenticated` | identity expired or absent |
 | `403` | `insufficient-permissions` | explicit refusal for that resource |
 | `404` | `unverified` | ambiguous — see below |
@@ -276,25 +279,25 @@ Keep the record minimal and non-secret. The bundled helper stores a versioned JS
 
 ```json
 {
-  "version": 1,
-  "binding": {"repository": "OWNER/REPO", "branch": "main"},
+  "version": 2,
+  "binding": {"repository": "OWNER/REPO", "branch": "main", "head_sha": "..."},
   "bootstrap": {"status": "created", "initial_commit_sha": "..."}
 }
 ```
 
 For a reused existing binding, `bootstrap.status` is `reused` and the initial SHA may be absent.
-Verification time and CLI status may be kept as historical observations, never as a permission.
 
 - `repository`: `OWNER/REPO`
 - `branch`: the branch that was verified, normally `main`
-- optional: `verified_at`, `verified_by`, `status`
+- `head_sha`: the latest verified commit at `main`; update it after every successful documentation commit
 
 Store it in the bundled helper's app-owned local state file. On macOS this is under
 `~/Library/Application Support/InfraKeeper/state.json`; on Windows it is under the user's
 `LOCALAPPDATA\InfraKeeper\state.json`; on Linux and other Unix-like systems it is under
 `$XDG_STATE_HOME/infra-keeper/state.json` or `~/.local/state/infra-keeper/state.json`. Do not write
 it into the repository, and do not store tokens, `gh` credentials or repository contents. If the host
-does not allow this file to be read or written, say so and ask for `OWNER/REPO` each session instead.
+does not allow this file to be read or written, say so and ask for `OWNER/REPO` each session instead. A
+state file without `head_sha` is upgraded after a successful fresh S5 verification.
 
 Reuse: ordinary maintenance tasks use the bound repository directly, without re-running S1–S6 and
 without asking for the repository again. The user's current explicit selection, and any exclusion,
@@ -344,6 +347,7 @@ repository is `OWNER/REPO` on `main`; the requested work can now continue.
 | Status | Means | Does not mean |
 | --- | --- | --- |
 | `ready` | read verification of the bound repository succeeded on the CLI (S5 only) | write access, or permission beyond read |
+| `changed-since-state` | GitHub `main` has a different HEAD SHA than the local binding state | proof that the change is unauthorized |
 | `unavailable` | the CLI is absent or local command execution is unavailable | that the user has no GitHub access by another route |
 | `unauthenticated` | the CLI exists but presents no valid identity (`401`, no login) | that the account lacks repository permission |
 | `insufficient-permissions` | authenticated, and a read was explicitly refused (`403`) for that repository | that the token is invalid |

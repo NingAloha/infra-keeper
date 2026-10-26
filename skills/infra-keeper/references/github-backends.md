@@ -24,12 +24,14 @@ own rules, and the wizard does not restate them.
    established in the conversation, or that stored binding — and never guess an unrelated repository.
    A binding narrows reads to one repository; it never authorizes writes and never overrides an exclusion.
 2. When local commands are permitted, check `gh --version` and `gh auth status` (never print tokens).
-3. Require the bound repository owner to match the authenticated user's GitHub login. Organization,
+3. Read the bound repository's `main` HEAD SHA and compare it with local state before proceeding. A
+   mismatch is reported and automatic writes stop until the current state is reviewed.
+4. Require the bound repository owner to match the authenticated user's GitHub login. Organization,
    collaborator and other-user repositories are outside this backend's scope, even when the account
    has access to them.
-4. Prefer the bundled JSON CLI helper for structured operations; use direct `gh` commands only as a disclosed fallback.
-5. State the selected CLI path and scope before operations.
-6. Backend choice **does not** supersede approval, account permissions, platform rules, branch restrictions, or GitHub protections.
+5. Prefer the bundled JSON CLI helper for structured operations; use direct `gh` commands only as a disclosed fallback.
+6. State the selected CLI path and scope before operations.
+7. Backend choice **does not** supersede approval, account permissions, platform rules, branch restrictions, or GitHub protections.
 
 A missing CLI capability can justify using the helper's direct `gh` fallback. A **denied operation** cannot: stop instead of trying another channel to bypass it.
 

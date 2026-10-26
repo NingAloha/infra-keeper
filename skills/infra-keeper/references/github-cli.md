@@ -21,9 +21,11 @@ When the host can execute packaged scripts, prefer:
 ```sh
 python3 skills/infra-keeper/scripts/gh_backend.py authenticated-user
 python3 skills/infra-keeper/scripts/gh_backend.py read-state
+python3 skills/infra-keeper/scripts/gh_backend.py repository-head --owner OWNER --repo REPO --branch main
 python3 skills/infra-keeper/scripts/gh_backend.py repository --owner OWNER --repo REPO
 python3 skills/infra-keeper/scripts/gh_backend.py create-repository --owner OWNER --repo REPO --approved
-python3 skills/infra-keeper/scripts/gh_backend.py write-binding --owner OWNER --repo REPO --branch main --bootstrap-status created --initial-commit-sha INITIAL_SHA --verified
+python3 skills/infra-keeper/scripts/gh_backend.py write-binding --owner OWNER --repo REPO --branch main --bootstrap-status created --initial-commit-sha INITIAL_SHA --head-sha HEAD_SHA --verified
+python3 skills/infra-keeper/scripts/gh_backend.py update-binding-head --owner OWNER --repo REPO --branch main --head-sha HEAD_SHA --verified
 python3 skills/infra-keeper/scripts/gh_backend.py get-file --owner OWNER --repo REPO --path README.md --branch main
 python3 skills/infra-keeper/scripts/gh_backend.py list-directory --owner OWNER --repo REPO --branch main
 python3 skills/infra-keeper/scripts/gh_backend.py list-commits --owner OWNER --repo REPO --branch main
@@ -33,9 +35,11 @@ The helper calls `gh api` without a shell, emits machine-readable JSON, validate
 requires the requested repository owner to match the authenticated user's GitHub login, and keeps
 credentials in `gh`'s own credential mechanism. Its `create-repository` command is only for the
 first-run bootstrap, defaults to a private repository with `--add-readme`, and requires `--approved`.
-Its `read-state` and `write-binding` commands manage only the local non-secret binding state. Write the
-binding only after the repository metadata and root listing have both passed S5; `--verified` is a
-required guard. The state file is local to the host and is not committed to GitHub.
+Its `read-state`, `write-binding` and `update-binding-head` commands manage only the local non-secret
+binding state. `repository-head` reads the exact `main` HEAD SHA. Write the initial binding only after
+the repository metadata, `main` HEAD and root listing have passed S5; `--verified` is a required guard.
+After a direct Git commit and push, call `update-binding-head` with the verified remote SHA. The state
+file is local to the host and is not committed to GitHub.
 It supports `create-or-update-file` and
 `delete-file` only with `--approved`; updates require `--expected-sha`, deletes always require a
 matching `--expected-sha`, and both can check `--expected-head-sha`. Use a temporary content file for
@@ -91,6 +95,8 @@ git diff -- path/to/approved-file.md
 git add -- path/to/approved-file.md
 git commit -m "docs: update approved infrastructure record"
 git push origin main
+# after the push, verify remote main and update the local binding SHA
+python3 skills/infra-keeper/scripts/gh_backend.py update-binding-head --owner OWNER --repo REPO --branch main --head-sha HEAD_SHA --verified
 ```
 
 Do not run `git add -A`, `git push --force`, or commit unrelated local changes. If the tree is dirty, `main` differs from the expected upstream, or a concurrent update occurs, stop and reassess. Verify remote files and the final commit via GitHub read operations after pushing.

@@ -44,8 +44,9 @@ maintain infrastructure records does **not** enter the setup flow.
 Read [GitHub backends](references/github-backends.md) first.
 
 At the start of a new agent session, read the local InfraKeeper state with the bundled helper before
-using a repository. Treat the recorded binding as a candidate until the current `gh` identity and
-`OWNER/REPO@main` are re-verified; never treat the local file as GitHub permission.
+using a repository. Treat the recorded binding and `main` HEAD SHA as candidates until the current `gh`
+identity and `OWNER/REPO@main` are re-verified. If the GitHub HEAD differs from the local SHA, report
+the change and stop automatic writes; never treat the local file as GitHub permission.
 
 1. Use the local **GitHub CLI (`gh`)** only when shell access and a properly authenticated CLI are available.
 2. Prefer the bundled JSON CLI helper described in [GitHub CLI instructions](references/github-cli.md#bundled-json-cli-helper) for structured reads and guarded Contents API writes.

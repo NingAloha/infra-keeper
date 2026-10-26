@@ -15,7 +15,8 @@ InfraKeeper 是一个实验性的 **Agent Plugin**，封装了一份标准 **Age
    授权即可。如果宿主不支持交互终端，才退回让你在本机终端执行。它不会接收、显示或保存 Token。
 5. 如果本地没有绑定状态，给仓库起一个名字，默认是 `infrastructure`。如果该名字已存在，向导会要求换一个未
    使用的名字；创建个人私有仓库前会单独请求一次批准。之后启动只验证已绑定的仓库。CLI 判定为：
-   `ready`、`unavailable`、`unauthenticated`、`insufficient-permissions`、`out-of-scope` 或 `unverified`。
+   `ready`、`changed-since-state`、`unavailable`、`unauthenticated`、`insufficient-permissions`、
+   `out-of-scope` 或 `unverified`。
 
 本版本只允许操作**当前登录 GitHub 用户自己拥有的仓库**。组织仓库、协作者仓库和其他用户的公开
 仓库，即使当前账号有访问权限，也会被拒绝。
@@ -24,9 +25,10 @@ InfraKeeper 是一个实验性的 **Agent Plugin**，封装了一份标准 **Age
 初始 README；创建前必须展示完整计划并获得单独批准。它不会创建测试提交或测试文件，也不会静默
 安装软件、修改宿主配置、环境变量或凭据文件。Token 和浏览器授权始终由你本人处理。
 
-S5 成功后，InfraKeeper 会在本机应用状态文件中只保存绑定元数据：仓库、`main` 分支、首次创建
-状态和可选的初始提交 SHA。它不会保存 Token、`gh` 凭据或仓库内容。每次新会话先读取该文件，再
-重新校验记录的仓库后再使用；如果文件不存在或无效，就重新询问仓库名称。
+S5 成功后，InfraKeeper 会在本机应用状态文件中只保存绑定元数据：仓库、`main` 分支、当前
+`main` HEAD SHA、首次创建状态和可选的初始提交 SHA。每次成功提交文档后都会更新本地 HEAD SHA。
+每次新会话先读取该文件并与 GitHub 比对后再使用；如果不一致，会报告变更并停止自动写入。它不会
+保存 Token、`gh` 凭据或仓库内容。
 
 ## 包结构
 

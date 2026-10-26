@@ -24,7 +24,8 @@ GH_TIMEOUT_SECONDS = 30
 OWNER_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,38})$")
 REPO_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,99})$")
 SHA_RE = re.compile(r"^[0-9a-fA-F]{7,64}$")
-STATE_VERSION = 1
+STATE_VERSION = 2
+SUPPORTED_STATE_VERSIONS = {1, STATE_VERSION}
 
 
 class BackendError(Exception):
@@ -72,7 +73,7 @@ def load_state() -> dict[str, Any] | None:
         value = json.loads(raw)
     except json.JSONDecodeError as exc:
         raise BackendError("local InfraKeeper state is not valid JSON") from exc
-    if not isinstance(value, dict) or value.get("version") != STATE_VERSION:
+    if not isinstance(value, dict) or value.get("version") not in SUPPORTED_STATE_VERSIONS:
         raise BackendError("local InfraKeeper state has an unsupported version")
     binding = value.get("binding")
     if not isinstance(binding, dict):
@@ -88,6 +89,8 @@ def load_state() -> dict[str, Any] | None:
         "binding": {"repository": f"{owner}/{repo}", "branch": "main"},
         "bootstrap": {"status": bootstrap["status"]},
     }
+    if "head_sha" in binding:
+        normalized["binding"]["head_sha"] = sha(binding["head_sha"], "head-sha")
     if "initial_commit_sha" in bootstrap:
         normalized["bootstrap"]["initial_commit_sha"] = sha(
             bootstrap["initial_commit_sha"], "initial-commit-sha"
@@ -316,6 +319,17 @@ def list_commits(args: argparse.Namespace) -> dict[str, Any]:
     return {"branch": ref, "commits": result}
 
 
+def repository_head(args: argparse.Namespace) -> dict[str, Any]:
+    owner, repo = repository(args.owner, args.repo)
+    enforce_personal_repository(owner, repo)
+    ref = branch(args.branch)
+    return {
+        "repository": f"{owner}/{repo}",
+        "branch": ref,
+        "head_sha": head_sha(owner, repo, ref),
+    }
+
+
 def repository_info(args: argparse.Namespace) -> Any:
     owner, repo = repository(args.owner, args.repo)
     enforce_personal_repository(owner, repo)
@@ -333,6 +347,59 @@ def read_state(_: argparse.Namespace) -> dict[str, Any]:
     return {"action": "read-state", "present": True, **value}
 
 
+def update_binding_head(args: argparse.Namespace) -> dict[str, Any]:
+    if not args.verified:
+        raise BackendError("--verified is required after a successful commit and push")
+    owner, repo = repository(args.owner, args.repo)
+    ref = branch(args.branch)
+    if ref != "main":
+        raise BackendError("InfraKeeper bindings must use the main branch")
+    new_head = sha(args.head_sha, "head-sha")
+    enforce_personal_repository(owner, repo)
+    actual_head = head_sha(owner, repo, ref)
+    if actual_head != new_head:
+        raise BackendError(
+            f"remote branch HEAD does not match supplied head SHA (expected {new_head}, current {actual_head})"
+        )
+    state = load_state()
+    if state is None:
+        raise BackendError("local InfraKeeper binding state is absent")
+    stored_owner, stored_repo = split_repository(state["binding"]["repository"])
+    if (stored_owner.casefold(), stored_repo.casefold()) != (owner.casefold(), repo.casefold()):
+        raise BackendError("local binding does not match the requested repository")
+    state["version"] = STATE_VERSION
+    state["binding"]["head_sha"] = new_head
+    save_state(state)
+    return {
+        "action": "update-state-head",
+        "repository": f"{owner}/{repo}",
+        "branch": ref,
+        "head_sha": new_head,
+    }
+
+
+def record_bound_head(owner: str, repo: str, ref: str, new_head: str) -> dict[str, Any]:
+    """Best-effort local state update after a successful GitHub write."""
+    if ref != "main":
+        return {"state_updated": False, "state_update_reason": "binding branch is not main"}
+    try:
+        state = load_state()
+    except BackendError as exc:
+        return {"state_updated": False, "state_update_reason": redact(str(exc))}
+    if state is None:
+        return {"state_updated": False, "state_update_reason": "local binding state is absent"}
+    stored_owner, stored_repo = split_repository(state["binding"]["repository"])
+    if (stored_owner.casefold(), stored_repo.casefold()) != (owner.casefold(), repo.casefold()):
+        return {"state_updated": False, "state_update_reason": "local binding does not match repository"}
+    state["version"] = STATE_VERSION
+    state["binding"]["head_sha"] = sha(new_head, "head-sha")
+    try:
+        save_state(state)
+    except BackendError as exc:
+        return {"state_updated": False, "state_update_reason": redact(str(exc))}
+    return {"state_updated": True}
+
+
 def write_binding(args: argparse.Namespace) -> dict[str, Any]:
     if not args.verified:
         raise BackendError("--verified is required after successful repository verification")
@@ -340,6 +407,7 @@ def write_binding(args: argparse.Namespace) -> dict[str, Any]:
     ref = branch(args.branch)
     if ref != "main":
         raise BackendError("InfraKeeper bindings must use the main branch")
+    head = sha(args.head_sha, "head-sha")
     bootstrap: dict[str, Any] = {"status": args.bootstrap_status}
     if args.bootstrap_status == "created":
         bootstrap["initial_commit_sha"] = sha(args.initial_commit_sha, "initial-commit-sha")
@@ -347,7 +415,7 @@ def write_binding(args: argparse.Namespace) -> dict[str, Any]:
         bootstrap["initial_commit_sha"] = sha(args.initial_commit_sha, "initial-commit-sha")
     value = {
         "version": STATE_VERSION,
-        "binding": {"repository": f"{owner}/{repo}", "branch": ref},
+        "binding": {"repository": f"{owner}/{repo}", "branch": ref, "head_sha": head},
         "bootstrap": bootstrap,
     }
     save_state(value)
@@ -355,6 +423,7 @@ def write_binding(args: argparse.Namespace) -> dict[str, Any]:
         "action": "write-state",
         "repository": f"{owner}/{repo}",
         "branch": ref,
+        "head_sha": head,
         "bootstrap": bootstrap,
     }
 
@@ -481,12 +550,18 @@ def write_file(args: argparse.Namespace) -> dict[str, Any]:
     if expected is not None:
         body["sha"] = expected
     result = gh_api(endpoint(owner, repo, f"contents/{path}"), method="PUT", body=body)
+    commit_sha = (result or {}).get("commit", {}).get("sha")
+    state_update = record_bound_head(owner, repo, ref, commit_sha) if commit_sha else {
+        "state_updated": False,
+        "state_update_reason": "GitHub returned no commit SHA",
+    }
     return {
         "action": "update" if existing is not None else "create",
         "path": path,
         "branch": ref,
         "content_sha": (result or {}).get("content", {}).get("sha"),
-        "commit_sha": (result or {}).get("commit", {}).get("sha"),
+        "commit_sha": commit_sha,
+        **state_update,
     }
 
 
@@ -509,7 +584,18 @@ def delete_file(args: argparse.Namespace) -> dict[str, Any]:
         method="DELETE",
         body={"message": required_text(args.commit_message, "commit-message"), "sha": expected, "branch": ref},
     )
-    return {"action": "delete", "path": path, "branch": ref, "commit_sha": (result or {}).get("commit", {}).get("sha")}
+    commit_sha = (result or {}).get("commit", {}).get("sha")
+    state_update = record_bound_head(owner, repo, ref, commit_sha) if commit_sha else {
+        "state_updated": False,
+        "state_update_reason": "GitHub returned no commit SHA",
+    }
+    return {
+        "action": "delete",
+        "path": path,
+        "branch": ref,
+        "commit_sha": commit_sha,
+        **state_update,
+    }
 
 
 def add_repository_args(parser: argparse.ArgumentParser) -> None:
@@ -537,8 +623,16 @@ def build_parser() -> argparse.ArgumentParser:
     state_write_parser.add_argument("--branch", default="main")
     state_write_parser.add_argument("--bootstrap-status", choices=("created", "reused"), required=True)
     state_write_parser.add_argument("--initial-commit-sha")
+    state_write_parser.add_argument("--head-sha", required=True)
     state_write_parser.add_argument("--verified", action="store_true")
     state_write_parser.set_defaults(handler=write_binding)
+
+    state_head_parser = subparsers.add_parser("update-binding-head")
+    add_repository_args(state_head_parser)
+    state_head_parser.add_argument("--branch", default="main")
+    state_head_parser.add_argument("--head-sha", required=True)
+    state_head_parser.add_argument("--verified", action="store_true")
+    state_head_parser.set_defaults(handler=update_binding_head)
 
     info_parser = subparsers.add_parser("repository")
     add_repository_args(info_parser)
@@ -558,6 +652,10 @@ def build_parser() -> argparse.ArgumentParser:
     add_ref_args(commits_parser)
     commits_parser.add_argument("--per-page", type=int, default=10)
     commits_parser.set_defaults(handler=list_commits)
+
+    head_parser = subparsers.add_parser("repository-head")
+    add_ref_args(head_parser)
+    head_parser.set_defaults(handler=repository_head)
 
     file_parser = subparsers.add_parser("get-file")
     add_ref_args(file_parser)

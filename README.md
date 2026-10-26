@@ -20,7 +20,8 @@ InfraKeeper is an experimental **Agent Plugin** that packages a standard **Agent
 5. If no local binding exists, choose a repository name; the default is `infrastructure`. If it already exists,
    the wizard asks for an unused name, requests one separate approval, creates a private personal
    repository, and verifies it. Later runs only verify the stored binding. It reports one CLI verdict:
-   `ready`, `unavailable`, `unauthenticated`, `insufficient-permissions`, `out-of-scope` or `unverified`.
+   `ready`, `changed-since-state`, `unavailable`, `unauthenticated`, `insufficient-permissions`,
+   `out-of-scope` or `unverified`.
 
 This version operates only on repositories **owned by the authenticated GitHub user**. Organization,
 collaborator and other-user public repositories are rejected even when the account can access them.
@@ -33,9 +34,10 @@ to the user's terminal only when the host lacks the required capability, and nev
 or stores a token.
 
 After S5 succeeds, InfraKeeper stores only binding metadata in a local app state file: the repository,
-`main` branch, bootstrap status and optional initial commit SHA. It never stores tokens, `gh` credentials
-or repository contents. Each new agent session reads that file first and re-verifies the recorded
-repository before use; if the file is unavailable or invalid, it asks for the repository again.
+`main` branch, current `main` HEAD SHA, bootstrap status and optional initial commit SHA. After every
+successful documentation commit, the local HEAD SHA is updated. Each new agent session reads the file
+first and compares it with GitHub before use; a mismatch is reported and automatic writes stop. It never
+stores tokens, `gh` credentials or repository contents.
 
 ## Package layout
 
