@@ -18,7 +18,8 @@ its GitHub access, for example:
 - "set up InfraKeeper", "connect GitHub CLI", "re-verify access"
 
 Do not wait for an initialization phrase. Do not enter it for unrelated work, and do not merge it
-into an audit run. If the user asks for an audit before the preflight is ready, run this flow first:
+into an audit run. Keep only one InfraKeeper Agent session open per device; parallel sessions can race
+when updating the shared local state file. If the user asks for an audit before the preflight is ready, run this flow first:
 an audit needs a bound repository.
 
 ## Safety contract

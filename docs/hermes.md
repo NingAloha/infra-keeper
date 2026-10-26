@@ -62,7 +62,8 @@ binding metadata, canonical `main` branch, a per-branch HEAD map, device ID and 
 optional initial commit SHA. A new Hermes session reads and synchronizes `main` by default. When the current
 task discusses a device, Hermes activates only that device branch, validates its stored checkpoint and writes
 only there. Device branches are not merged into `main`, so independent device work has no merge step or merge
-conflict. The file contains no token, credential data or repository contents.
+conflict. Keep only one InfraKeeper Hermes/Agent session open per device because the local state file is
+shared by sessions on that device. The file contains no token, credential data or repository contents.
 
 ## Reload after an update
 
