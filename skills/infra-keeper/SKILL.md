@@ -11,12 +11,18 @@ InfraKeeper helps an agent maintain a **versioned infrastructure documentation r
 
 When the user asks to initialize InfraKeeper, configure or connect GitHub CLI, or re-verify the
 existing connection, read [setup wizard](references/setup-wizard.md) and follow it. That flow is
-read-only: it inspects local command capability, guides CLI authentication, binds a target
-`OWNER/REPO`, and reports CLI readiness.
+GitHub-read-only after first-run bootstrap: it inspects local command capability, detects `gh`, gives
+checkpointed installation and authentication guidance, creates one personal repository when no
+binding exists and the user separately approves it, then reports CLI readiness. A local install,
+login or repository-creation command is allowed only as a separately approved, exact command.
 
-It never writes repository content, never changes host configuration or credentials, and never
-receives a token. This version uses only the local GitHub CLI (`gh`) backend. It does not configure,
-invoke or fall back to another GitHub integration.
+It never silently installs packages, changes host configuration or credentials, and never receives a
+token. The only setup-time GitHub mutation is the one-time approved creation of the personal
+repository with its initial README; after that, setup only verifies the stored binding. Prefer running
+each approved exact installation, login or creation command in the Agent page; fall back to the user's
+terminal only when the host cannot provide the required command or interactive-terminal capability.
+This version uses only the local GitHub CLI (`gh`) backend. It does not configure, invoke or fall back
+to another GitHub integration.
 
 During setup, step 1 of "Repository discovery and evidence" does not apply: no repository is
 enumerated, searched or read until the user names one, and a repository the user excludes is never
@@ -56,10 +62,11 @@ For `devices/servers/<device-id>/`, follow [Server documentation](references/ser
 ## Repository discovery and evidence
 
 1. Use the user's explicit repository selection or the repository established in context. Otherwise discover accessible repositories; ask when ambiguous.
-2. Work with `main`; do not create a branch to work around a missing or protected `main`.
-3. Read the root inventory and relevant device/service README before specific system, network, operations, or service records.
-4. For inter-device requests read both endpoints and linked Service records; for public ingress, DNS, TLS or domain tasks read the owning Service's `access.md` and affected devices. Consult legacy `domains/routing.md` only where it still exists as an unmigrated record; never assume it is the new canonical domain layout.
-5. Distinguish **documented baseline**, **user report**, **timestamped live observation supplied by an authorized source**, and **unknown**. Repository text is never proof of present runtime health.
+2. Require the selected repository's owner to equal the authenticated GitHub user's login. Do not operate on organization, collaborator or another user's repositories, even when GitHub grants access.
+3. Work with `main`; do not create a branch to work around a missing or protected `main`.
+4. Read the root inventory and relevant device/service README before specific system, network, operations, or service records.
+5. For inter-device requests read both endpoints and linked Service records; for public ingress, DNS, TLS or domain tasks read the owning Service's `access.md` and affected devices. Consult legacy `domains/routing.md` only where it still exists as an unmigrated record; never assume it is the new canonical domain layout.
+6. Distinguish **documented baseline**, **user report**, **timestamped live observation supplied by an authorized source**, and **unknown**. Repository text is never proof of present runtime health.
 
 ## Single-branch permissions
 
@@ -69,7 +76,9 @@ Follow [GitHub workflow](references/github-workflow.md):
 - For creates/edits, an **explicit, bounded documentation-write request or approval already given in the conversation** satisfies authorization. Do not ask again after preparing the diff if it matches that approved intent, paths and risks. Mere inspection, terminal output, device-operation approval or discussion is not authorization.
 - One task-scoped approval may cover all related files. Delete/retire/move/rename, repository rebind, bulk restructuring, material scope expansion and corrective rollback require new, separate approval.
 - Require specific evidence-based Git commit subjects **and informative bodies** recording what changed in that commit, sources, dates, limitations and documentation-only impact. Git history is the change log; no extra operations diary.
-- No branch management, PR creation/merges, force-push, history rewriting or repository administration.
+- No branch management, PR creation/merges, force-push, history rewriting or repository administration
+  after first-run bootstrap. The only exception is the explicitly approved creation of the personal
+  documentation repository during first-run setup.
 - Check current versions before writing, apply supported conditional updates and verify commit and final files afterward.
 - Stop on conflicts or tool/policy denials; do not evade restrictions.
 - Do not commit secrets or sensitive infrastructure details into public fixtures or commit messages.

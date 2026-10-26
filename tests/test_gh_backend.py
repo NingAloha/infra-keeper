@@ -22,6 +22,7 @@ class GhBackendTests(unittest.TestCase):
             {
                 "authenticated-user",
                 "repository",
+                "create-repository",
                 "list-commits",
                 "get-file",
                 "list-directory",
@@ -73,16 +74,112 @@ class GhBackendTests(unittest.TestCase):
         with patch.object(
             GH,
             "gh_api",
-            return_value={
-                "type": "file",
-                "path": "README.md",
-                "sha": "b" * 40,
-                "content": "b2xkCg==",
-            },
+            side_effect=[
+                {"login": "example"},
+                {
+                    "type": "file",
+                    "path": "README.md",
+                    "sha": "b" * 40,
+                    "content": "b2xkCg==",
+                },
+            ],
         ) as api:
             with self.assertRaisesRegex(GH.BackendError, "changed since approval"):
                 GH.write_file(args)
-        api.assert_called_once()
+        self.assertEqual(
+            [call.args for call in api.call_args_list],
+            [("user",), ("repos/example/docs/contents/README.md",)],
+        )
+
+    def test_personal_owner_check_accepts_authenticated_user_case_insensitively(self):
+        with patch.object(GH, "gh_api", return_value={"login": "Alice"}) as api:
+            GH.enforce_personal_repository("alice", "docs")
+        api.assert_called_once_with("user")
+
+    def test_personal_owner_check_rejects_other_owner_before_repository_request(self):
+        args = GH.build_parser().parse_args(
+            ["repository", "--owner", "company", "--repo", "infrastructure"]
+        )
+        with patch.object(GH, "gh_api", return_value={"login": "alice"}) as api:
+            with self.assertRaisesRegex(GH.BackendError, "organization, collaborator"):
+                GH.repository_info(args)
+        api.assert_called_once_with("user")
+
+    def test_create_repository_requires_approval_without_calling_gh(self):
+        args = GH.build_parser().parse_args(
+            ["create-repository", "--owner", "alice", "--repo", "infrastructure"]
+        )
+        with patch.object(GH, "gh_api") as api, patch.object(GH, "run_gh_command") as command:
+            with self.assertRaises(GH.BackendError):
+                GH.create_repository(args)
+        api.assert_not_called()
+        command.assert_not_called()
+
+    def test_create_repository_rejects_existing_name(self):
+        args = GH.build_parser().parse_args(
+            [
+                "create-repository",
+                "--owner",
+                "alice",
+                "--repo",
+                "infrastructure",
+                "--approved",
+            ]
+        )
+        with patch.object(
+            GH,
+            "gh_api",
+            side_effect=[{"login": "alice"}, {"full_name": "alice/infrastructure"}],
+        ) as api, patch.object(GH, "run_gh_command") as command:
+            with self.assertRaisesRegex(GH.BackendError, "already exists"):
+                GH.create_repository(args)
+        command.assert_not_called()
+        self.assertEqual(
+            [call.args for call in api.call_args_list],
+            [("user",), ("repos/alice/infrastructure",)],
+        )
+
+    def test_create_repository_uses_private_readme_bootstrap(self):
+        args = GH.build_parser().parse_args(
+            [
+                "create-repository",
+                "--owner",
+                "alice",
+                "--repo",
+                "infrastructure",
+                "--approved",
+            ]
+        )
+        with patch.object(
+            GH,
+            "gh_api",
+            side_effect=[
+                {"login": "alice"},
+                GH.BackendError("GitHub CLI request failed: HTTP 404"),
+                {
+                    "full_name": "alice/infrastructure",
+                    "visibility": "private",
+                    "default_branch": "main",
+                },
+                [{"sha": "c" * 40}],
+            ],
+        ) as api, patch.object(GH, "run_gh_command") as command:
+            result = GH.create_repository(args)
+        self.assertEqual(result["repository"], "alice/infrastructure")
+        self.assertEqual(result["initial_commit_sha"], "c" * 40)
+        command.assert_called_once_with(
+            [
+                "gh",
+                "repo",
+                "create",
+                "alice/infrastructure",
+                "--private",
+                "--add-readme",
+                "--description",
+                "InfraKeeper infrastructure documentation",
+            ]
+        )
+        self.assertEqual(len(api.call_args_list), 4)
 
     def test_json_output_shape_is_serializable(self):
         value = {"action": "create", "commit_sha": "abc"}

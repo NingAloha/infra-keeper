@@ -19,7 +19,10 @@ plugin installer.
 
 On the tested Mac, `gh` v2.101.0 was already authenticated. Hermes used its local shell capability
 to read repository records and, after explicit approval, create and verify a documentation commit.
-The Skill does not install `gh` or authenticate it. Never paste a token into a prompt.
+The setup wizard now detects whether `gh` is present and gives one-step-at-a-time installation
+guidance when it is missing. Hermes should run the exact command in the Agent page after explicit
+approval; use the user's terminal only if Hermes cannot provide the required command or interactive
+terminal capability. Never paste a token into a prompt.
 
 The bundled helper at `skills/infra-keeper/scripts/gh_backend.py` calls `gh api` without a shell and
 prints structured JSON. It keeps authentication in the user's existing `gh` credential mechanism,
@@ -36,8 +39,21 @@ The setup wizard is entered in natural language. After installing or updating th
 such as **「初始化 InfraKeeper」** or **"Set up InfraKeeper"** routes to the setup wizard instead of
 the documentation workflow.
 
-The wizard now checks only local command capability and `gh` authentication. It does not inspect or
-configure credential files, shell profiles or repository content before the user names a repository.
+The wizard checks local command capability and `gh` authentication. If `gh` is missing, it asks for
+the operating system, shows the exact official installation command and its effect, and requests
+separate approval before running it. It then re-runs `gh --version`. If authentication is missing,
+it similarly shows `gh auth login` and requests a separate approval before starting it in the Agent
+page; the user completes the browser/device authorization. If Hermes cannot keep that command
+interactive, provide a terminal fallback. It does not inspect or configure credential files, shell
+profiles or repository content before the user names a repository.
+
+After the user names a repository, Hermes verifies that its owner matches the authenticated GitHub
+login. Organization, collaborator and other-user repositories are rejected before repository reads.
+
+On the first setup run with no stored binding, Hermes asks for a repository name, defaults to
+`infrastructure`, checks that the name is unused under the authenticated user, and requests one
+separate approval before creating a private repository with an initial README. After the repository
+is verified and bound, later setup runs only re-check it and never create another repository.
 
 ## Evidence and limitations
 

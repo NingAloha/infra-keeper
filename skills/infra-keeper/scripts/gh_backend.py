@@ -121,6 +121,27 @@ def gh_api(
         raise BackendError("GitHub CLI returned a non-JSON response") from exc
 
 
+def run_gh_command(command: list[str]) -> str:
+    try:
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=GH_TIMEOUT_SECONDS,
+        )
+    except FileNotFoundError as exc:
+        raise BackendError("GitHub CLI 'gh' is not installed or is not on PATH") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise BackendError("GitHub CLI request timed out after 30 seconds") from exc
+    except OSError as exc:
+        raise BackendError(f"could not start GitHub CLI: {redact(str(exc))}") from exc
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip() or "unknown gh error"
+        raise BackendError(f"GitHub CLI request failed: {redact(detail)}")
+    return result.stdout.strip()
+
+
 def current_file(owner: str, repo: str, path: str, ref: str) -> dict[str, Any]:
     result = gh_api(endpoint(owner, repo, f"contents/{path}"), query={"ref": ref})
     if not isinstance(result, dict) or result.get("type") != "file":
@@ -168,11 +189,13 @@ def check_head(owner: str, repo: str, ref: str, expected: str | None) -> None:
 
 def read_file(args: argparse.Namespace) -> dict[str, Any]:
     owner, repo = repository(args.owner, args.repo)
+    enforce_personal_repository(owner, repo)
     return current_file(owner, repo, repo_path(args.path), branch(args.branch))
 
 
 def list_directory(args: argparse.Namespace) -> dict[str, Any]:
     owner, repo = repository(args.owner, args.repo)
+    enforce_personal_repository(owner, repo)
     ref = branch(args.branch)
     path = repo_path(args.path, allow_empty=True)
     result = gh_api(
@@ -186,6 +209,7 @@ def list_directory(args: argparse.Namespace) -> dict[str, Any]:
 
 def list_commits(args: argparse.Namespace) -> dict[str, Any]:
     owner, repo = repository(args.owner, args.repo)
+    enforce_personal_repository(owner, repo)
     ref = branch(args.branch)
     if not 1 <= args.per_page <= 100:
         raise BackendError("per-page must be from 1 to 100")
@@ -200,6 +224,7 @@ def list_commits(args: argparse.Namespace) -> dict[str, Any]:
 
 def repository_info(args: argparse.Namespace) -> Any:
     owner, repo = repository(args.owner, args.repo)
+    enforce_personal_repository(owner, repo)
     return gh_api(endpoint(owner, repo))
 
 
@@ -207,10 +232,84 @@ def authenticated_user(_: argparse.Namespace) -> Any:
     return gh_api("user")
 
 
+def authenticated_login() -> str:
+    result = gh_api("user")
+    if not isinstance(result, dict):
+        raise BackendError("GitHub returned an unexpected authenticated-user response")
+    try:
+        return required_text(result["login"], "authenticated user login")
+    except (KeyError, TypeError) as exc:
+        raise BackendError("GitHub returned no authenticated user login") from exc
+
+
+def enforce_personal_repository(owner: str, repo: str) -> None:
+    current_login = authenticated_login()
+    if owner.casefold() != current_login.casefold():
+        raise BackendError(
+            "target repository owner must match the authenticated GitHub user; "
+            "organization, collaborator and other-user repositories are not allowed"
+        )
+
+
+def create_repository(args: argparse.Namespace) -> dict[str, Any]:
+    if not args.approved:
+        raise BackendError("--approved is required after explicit bounded user approval")
+    owner, repo = repository(args.owner, args.repo)
+    enforce_personal_repository(owner, repo)
+
+    try:
+        gh_api(endpoint(owner, repo))
+    except BackendError as exc:
+        if "404" not in str(exc):
+            raise
+    else:
+        raise BackendError("repository already exists; choose a different repository name")
+
+    description = required_text(args.description, "description")
+    visibility_flag = "--private" if args.visibility == "private" else "--public"
+    run_gh_command(
+        [
+            "gh",
+            "repo",
+            "create",
+            f"{owner}/{repo}",
+            visibility_flag,
+            "--add-readme",
+            "--description",
+            description,
+        ]
+    )
+    info = gh_api(endpoint(owner, repo))
+    if not isinstance(info, dict):
+        raise BackendError("repository was created but GitHub returned no repository metadata")
+    default_branch = info.get("default_branch")
+    if default_branch != "main":
+        raise BackendError(
+            f"repository was created, but its default branch is {default_branch!r}, not 'main'"
+        )
+    commits = gh_api(
+        endpoint(owner, repo, "commits"),
+        query={"sha": "main", "per_page": "1"},
+    )
+    if not isinstance(commits, list) or not commits or not isinstance(commits[0], dict):
+        raise BackendError("repository was created but its initial commit could not be verified")
+    initial_commit_sha = commits[0].get("sha")
+    if not isinstance(initial_commit_sha, str) or not initial_commit_sha:
+        raise BackendError("repository was created but GitHub returned no initial commit SHA")
+    return {
+        "action": "create-repository",
+        "repository": info.get("full_name", f"{owner}/{repo}"),
+        "visibility": info.get("visibility", args.visibility),
+        "default_branch": default_branch,
+        "initial_commit_sha": initial_commit_sha,
+    }
+
+
 def write_file(args: argparse.Namespace) -> dict[str, Any]:
     if not args.approved:
         raise BackendError("--approved is required after explicit bounded user approval")
     owner, repo = repository(args.owner, args.repo)
+    enforce_personal_repository(owner, repo)
     path = repo_path(args.path)
     ref = branch(args.branch)
     message = required_text(args.commit_message, "commit-message")
@@ -268,6 +367,7 @@ def delete_file(args: argparse.Namespace) -> dict[str, Any]:
     if not args.approved:
         raise BackendError("--approved is required after explicit bounded user approval")
     owner, repo = repository(args.owner, args.repo)
+    enforce_personal_repository(owner, repo)
     path = repo_path(args.path)
     ref = branch(args.branch)
     expected = sha(args.expected_sha, "expected-sha")
@@ -305,6 +405,16 @@ def build_parser() -> argparse.ArgumentParser:
     info_parser = subparsers.add_parser("repository")
     add_repository_args(info_parser)
     info_parser.set_defaults(handler=repository_info)
+
+    create_repo_parser = subparsers.add_parser("create-repository")
+    add_repository_args(create_repo_parser)
+    create_repo_parser.add_argument("--visibility", choices=("private", "public"), default="private")
+    create_repo_parser.add_argument(
+        "--description",
+        default="InfraKeeper infrastructure documentation",
+    )
+    create_repo_parser.add_argument("--approved", action="store_true")
+    create_repo_parser.set_defaults(handler=create_repository)
 
     commits_parser = subparsers.add_parser("list-commits")
     add_ref_args(commits_parser)

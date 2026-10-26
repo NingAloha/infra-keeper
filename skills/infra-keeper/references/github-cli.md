@@ -2,7 +2,7 @@
 
 Official manual: https://cli.github.com/manual/
 
-Use this backend only when the Agent has authorized local command execution and GitHub CLI is installed and authenticated. This is the only GitHub backend provided by this version of InfraKeeper.
+Use this backend only when the Agent has authorized local command execution and GitHub CLI is installed and authenticated. This is the only GitHub backend provided by this version of InfraKeeper. The target repository must be owned by the authenticated GitHub user; organization and other-user repositories are out of scope.
 
 ## Readiness
 
@@ -21,13 +21,17 @@ When the host can execute packaged scripts, prefer:
 ```sh
 python3 skills/infra-keeper/scripts/gh_backend.py authenticated-user
 python3 skills/infra-keeper/scripts/gh_backend.py repository --owner OWNER --repo REPO
+python3 skills/infra-keeper/scripts/gh_backend.py create-repository --owner OWNER --repo REPO --approved
 python3 skills/infra-keeper/scripts/gh_backend.py get-file --owner OWNER --repo REPO --path README.md --branch main
 python3 skills/infra-keeper/scripts/gh_backend.py list-directory --owner OWNER --repo REPO --branch main
 python3 skills/infra-keeper/scripts/gh_backend.py list-commits --owner OWNER --repo REPO --branch main
 ```
 
 The helper calls `gh api` without a shell, emits machine-readable JSON, validates repository paths,
-and keeps credentials in `gh`'s own credential mechanism. It supports `create-or-update-file` and
+requires the requested repository owner to match the authenticated user's GitHub login, and keeps
+credentials in `gh`'s own credential mechanism. Its `create-repository` command is only for the
+first-run bootstrap, defaults to a private repository with `--add-readme`, and requires `--approved`.
+It supports `create-or-update-file` and
 `delete-file` only with `--approved`; updates require `--expected-sha`, deletes always require a
 matching `--expected-sha`, and both can check `--expected-head-sha`. Use a temporary content file for
 larger approved documents rather than putting sensitive values in command arguments.
@@ -44,7 +48,7 @@ gh api repos/OWNER/REPO/commits?sha=main --method GET
 gh api repos/OWNER/REPO/git/trees/main -f recursive=1 --method GET
 ```
 
-Use `gh api` or permitted local read-only Git commands where appropriate; inspect returned data carefully. Avoid printing authentication headers, sensitive URLs, or secret-bearing raw logs. Check whether the repository actually has a `main` branch before proceeding.
+Use `gh api` or permitted local read-only Git commands where appropriate; inspect returned data carefully. Before a direct `gh` fallback, run `gh api user`, compare its `login` with the requested `OWNER`, and stop on a mismatch. Avoid printing authentication headers, sensitive URLs, or secret-bearing raw logs. Check whether the repository actually has a `main` branch before proceeding.
 
 ## Version preconditions (measured)
 
@@ -90,7 +94,12 @@ Alternatively, a client may use approved `gh api` GitHub Contents API or Git Tre
 
 ## Restrictions
 
-The following are disabled by InfraKeeper policy even if `gh` could execute them: branch creation/deletion, pull requests, force pushes, history rewriting, repository settings/visibility changes, and privilege escalation. If GitHub or the tool host blocks a write, **stop**; do not try another backend to bypass the rejection.
+The following are disabled by InfraKeeper policy even if `gh` could execute them: repositories owned by
+an organization, a collaborator, or another user; creating a second repository after bootstrap;
+branch creation/deletion, pull requests, force pushes, history rewriting, repository
+settings/visibility changes, and privilege escalation. The only repository-creation exception is the
+first-run personal private bootstrap described above. If GitHub or the tool host blocks a write,
+**stop**; do not try another backend to bypass the rejection.
 
 Official references:
 - https://cli.github.com/manual/gh_auth_status

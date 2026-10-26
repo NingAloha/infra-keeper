@@ -1,8 +1,11 @@
 # Interactive setup wizard
 
-Guided, **read-only** configuration of GitHub access for a first-time user. This is the entry point
-for "初始化 InfraKeeper" / "set up InfraKeeper". It is not a device audit and it never writes
-repository content.
+Guided configuration of GitHub CLI access for a first-time user. The flow is **read-only for GitHub
+after the personal repository is bootstrapped**. On the first run with no stored binding, it may
+create exactly one personal repository after a separate approval; later runs only verify that
+binding. This is the entry point for "初始化 InfraKeeper" / "set up InfraKeeper". It detects
+whether `gh` is available, walks the user through installation and authentication one step at a
+time, and then creates or verifies the personal repository. It is not a device audit.
 
 ## Trigger
 
@@ -17,16 +20,25 @@ asks for an audit before setup, run this flow first: an audit needs a bound repo
 
 ## Safety contract
 
-Setup is read-only, including when the user offers to let you "just test it":
+Setup is read-only for GitHub except for the one-time personal-repository bootstrap, including when
+the user offers to let you "just test it". An approved local package installation and the approved
+repository bootstrap are the only setup-time mutations allowed by this flow:
 
 - Probe only with the read operations named below. Never create, modify, move or delete a file, and
-  never create a "test" commit or branch. **Zero GitHub writes** for the whole flow, including the
-  stages that only prove a connection works.
-- Never change the host's environment variables, shell profiles or credential files. **Zero automatic
-  authentication or configuration changes**: give guidance and stop; acting
-  on it needs the user's explicit, separate approval in their own environment.
-- The user performs OAuth, PAT creation and `gh auth login` themselves. Never ask for, echo, store
-  or log a token, code, client secret or password, and never suggest sending one through chat.
+  never create a "test" commit or branch. There are zero GitHub writes unless this is the first run
+  with no binding and the user separately approves creation of the named personal repository.
+- Never change the host's environment variables, shell profiles or credential files. **No silent
+  installation or authentication**: if the user explicitly asks the assistant to install `gh`, show
+  the exact command, package source and expected effect first, obtain separate approval for that
+  one command, execute only that command in the Agent page when the host allows it, and re-check
+  afterward. A host's own command-approval prompt must also be accepted. Do not hide a package
+  manager, login command or repository-creation command inside another operation.
+- Prefer keeping the whole flow in the Agent page. Fall back to the user's terminal only when the
+  host cannot execute local commands, cannot provide an interactive terminal, or denies the command.
+  The user may run `gh auth login` themselves, or separately approve the assistant starting that
+  exact interactive command in the Agent page. The user completes the browser/device authorization.
+  Never ask for, echo, store or log a token, code, client secret, password or credential-file
+  contents, and never suggest sending one through chat.
 - A denial from the CLI is final for that operation. Do not retry it through another channel.
 - Never treat this project's own repository as the user's infrastructure repository.
 - If a capability cannot be inspected, report `unverified`. Do not guess `ready` or `unavailable`.
@@ -39,7 +51,7 @@ Every read must clear the current rung of this ladder before it is made.
 | --- | --- |
 | S1 | host capability only: whether a local command may run |
 | S3 | additionally, identity only: which user the local CLI is authenticated as |
-| after S4 names a repository | that repository only: its metadata, its `main`, its contents |
+| after S4 names a candidate | that candidate only: existence/metadata; after creation, its `main` and contents |
 | at any time | nothing about a repository the user has not named |
 
 - Before the user names `OWNER/REPO`, do not enumerate repositories, list an account's repositories,
@@ -78,14 +90,14 @@ in both languages.
 | S1 scan | detect host capabilities | always continues |
 | S2 select | confirm the CLI path | CLI selected or unavailable |
 | S3 CLI connection | binary presence, authentication, guidance | connection status recorded |
-| S4 bind | obtain `OWNER/REPO`, check `main` and visibility | repository accepted |
+| S4 create or bind | obtain a personal `OWNER/REPO`; create once or re-verify an existing binding | repository created or accepted |
 | S5 repository verification | read-only probe of that repository | readiness status recorded |
 | S6 report | readiness table, summary, handoff | setup ends |
 
 Two ordering rules follow from this list:
 
 - **A repository-level verdict requires a repository.** S3 can only establish whether the CLI is
-  present and authenticated. `ready` is reserved for S5, after S4 has fixed the target. Before that,
+  present and authenticated. `ready` is reserved for S5, after S4 has fixed or created the target. Before that,
   do not describe the CLI as ready for a repository.
 - **Guidance may precede binding.** Installation and authentication help in S3 needs no
   repository, so a user who has not chosen one yet can still be walked through setup.
@@ -101,12 +113,15 @@ The only capability that decides whether setup can continue is local command exe
 | Capability | How to check | Possible answers |
 | --- | --- | --- |
 | Local commands | run one harmless read-only command, if host policy allows | available / policy-denied / unavailable / cannot determine |
+| Interactive local commands | determine whether the Agent page can keep a command interactive | available / policy-denied / unavailable / cannot determine |
 
 Rules:
 
 - A runnable command is not proof of a valid GitHub identity. S3 resolves authentication.
 - Never claim to have scanned a capability you cannot inspect. Name the check that was impossible.
-- Do not install anything, `gh` included, without an explicit request.
+- The setup request authorizes installation guidance, not an unattended package-manager mutation.
+- Prefer the Agent page when local command execution and the required interactivity are available;
+  otherwise report the capability gap and offer the user's terminal as a fallback.
 
 ## S2 — choose the CLI path
 
@@ -114,31 +129,88 @@ There is one backend: local GitHub CLI. If local commands are unavailable or pol
 the gap and finish at S6 with `unavailable`. The bundled JSON helper and direct `gh` commands share
 the same identity; the helper is preferred when it can run.
 
-## S3 — CLI connection stage
+## S3 — CLI detection, installation guidance and authentication
 
-1. `gh --version`. If the binary is missing, record `unavailable` and point to
-   https://cli.github.com/. Do not install it unprompted.
-2. `gh auth status`. If it reports no login, record `unauthenticated` and ask the user to run
-   `gh auth login` in their own terminal. If they prefer `GH_TOKEN`, it must come from their own
-   secure environment; never ask for its value.
-3. `gh auth status` prints token scopes; report them if visible, but scopes are neither a repository
-   verdict nor permission to write.
-4. Record the connection result. Do not report `ready` from this stage.
+Run this stage as a checkpointed loop. Never assume that a command succeeded because the user said
+they intended to run it; re-probe after each completed step.
 
-## S4 — bind the repository
+1. Run `gh --version`.
+2. If `gh` is missing, report `unavailable`, ask which operating system the user is using if it is
+   not known, and give one installation path:
+   - macOS with Homebrew: `brew install gh`
+   - Windows with WinGet: `winget install --id GitHub.cli`
+   - Linux or another environment: use the official installation page at
+     https://cli.github.com/ or https://github.com/cli/cli#installation
+3. Prefer running the installation in the Agent page. Show a confirmation like this before executing
+   anything:
 
-Ask for `OWNER/REPO`. A repository URL or an SSH remote may be accepted and reduced to that pair.
+   ```text
+   即将执行：brew install gh
+   来源：Homebrew 的 GitHub CLI 包
+   影响：在本机安装 GitHub CLI；不会登录 GitHub，也不会修改仓库
+   是否批准仅执行这条命令？
+   ```
 
-- Confirm `main` exists on that repository using the chosen backend's read operations. If `main`
-  does not exist, report it and ask how to proceed — do not create a branch and do not silently
-  substitute another one.
-- Report the visibility (`public` / `private`), because it constrains what may be committed later.
+   After explicit approval, execute exactly the shown package-manager command once in the Agent page.
+   Do not add a package source, modify a shell profile, use `curl | sh`, or silently add `sudo`. If
+   the Agent page cannot provide the required terminal interaction, stop and give the same command
+   for the user to run locally. For Linux or another environment, do not invent a distro command:
+   use the official instructions or ask the user to provide the exact command they want approved.
+4. After the user-run or approved assistant-run installation finishes, re-run `gh --version`. A prior
+   `unavailable` result must not be reused after installation.
+5. Once the binary is present, run `gh auth status`. If it reports no login, prefer starting
+   `gh auth login` in the Agent page after showing the exact command and requesting separate approval.
+   The user completes the browser or device authorization. If the Agent page cannot keep the
+   interactive login usable, provide the command as a terminal fallback. For GitHub Enterprise, use
+   `gh auth login --hostname HOST` with the user's own host name.
+6. Re-run `gh auth status` after the user reports completion. Never ask for or echo a token, password,
+   one-time code or credential-file contents. If the user prefers `GH_TOKEN`, it must come from their
+   own secure environment.
+7. `gh auth status` may expose token scopes; report only the minimum relevant redacted status. Scopes
+   are neither a repository verdict nor permission to write.
+8. Record the connection result. Do not report `ready` from this stage; `ready` is reserved for S5.
 
-If the user does not want to bind a repository yet, stop after S3 with connection-level status
-and say plainly that no repository has been verified.
+The expected conversational checkpoints are:
 
-If a binding is already stored, show it here and ask whether to re-verify it or to rebind; see
-"Repository binding (persisted)".
+```text
+Agent 页面检测 gh → 展示命令并请求批准 → Agent 页面执行
+       → 重新检测 gh → Agent 页面单独批准 gh auth login → 用户完成浏览器授权
+       → 若宿主不支持，再退回用户终端执行
+       → 重新检测登录 → 用户提供 OWNER/REPO → 只读验证仓库
+```
+
+## S4 — create or bind the personal repository
+
+If a binding is already stored, show it here and re-verify it; do not ask for a new name or attempt
+to create another repository. See "Repository binding (persisted)".
+
+If no binding exists, ask for a repository name. The default suggestion is `infrastructure`, and the
+full target is the authenticated user's `OWNER/infrastructure`. The user may choose another name.
+
+1. Compare the target owner case-insensitively with the login verified in S3. A different owner is
+   `out-of-scope`; do not read or create organization, collaborator or another user's repositories.
+2. Check whether `OWNER/REPO` already exists. If it exists, do not bind it and do not overwrite it;
+   ask the user for a different unused name. If the check is denied or ambiguous, stop instead of
+   guessing that the name is available.
+3. If the name is unused, show the one-time creation plan:
+
+   ```text
+   Repository: OWNER/REPO
+   Visibility: private
+   Initial content: README.md
+   Branch requirement: main
+   Effect: create one new personal GitHub repository and its initial commit
+   ```
+
+   Ask for separate approval to create exactly this repository. This is the only repository-creation
+   approval in setup. The default is private; public visibility requires an explicit user choice.
+4. After approval, run the bundled `create-repository` helper, which invokes
+   `gh repo create OWNER/REPO --private --add-readme`. Do not create a branch, add a remote, clone,
+   push local content, or modify repository settings as part of bootstrap.
+5. Read back repository metadata. If the created repository does not have `main`, report the partial
+   result and stop; do not create or rename a branch automatically.
+6. Report the visibility and continue to S5 for the root read. Only a successful S5 result creates
+   the stored binding.
 
 ## S5 — repository verification
 
@@ -167,10 +239,10 @@ A user has one default infrastructure profile repository, maintained over time; 
 Persist a binding only after S5 returned `ready` for the CLI. A repository whose verification is
 `unverified` is not stored.
 
-A binding is trusted only with that provenance: the user picked the repository in a setup run, and the
-CLI reached `ready` on it. A repository name that merely appears in host memory, in an earlier
-conversation, or in notes is **not** a binding — ask the user to confirm it, and verify it through
-S4/S5 before use.
+A binding is trusted only with that provenance: the user picked or approved creation of the repository
+in a setup run, and the CLI reached `ready` on it. A repository name that merely appears in host
+memory, in an earlier conversation, or in notes is **not** a binding — ask the user to confirm it, and
+verify it through S4/S5 before use.
 
 Keep the record minimal: `repository` and `branch`. Verification time and CLI status may be kept as
 historical observations, never as a permission.
@@ -188,8 +260,10 @@ without asking for the repository again. The user's current explicit selection, 
 always override the stored binding. When the user explicitly asks to initialize or re-verify, show
 the stored binding and re-run S5 against it.
 
-Rebind: only on an explicit request. The new repository replaces the old binding only after a fresh
-S5 verdict of `ready` for the CLI; until then the old binding stays as it was.
+Rebind: only on an explicit request. A rebind may select an already-existing personal repository after
+fresh S4/S5 verification, but it must not silently create another repository. The new repository
+replaces the old binding only after a fresh S5 verdict of `ready` for the CLI; until then the old
+binding stays as it was.
 
 Failure: if a read of the bound repository returns `401`, `403`, `404` or times out, report the
 error as it stands and leave the binding unchanged. The failure may be kept as a historical
@@ -215,10 +289,13 @@ InfraKeeper setup — summary
 backend selected: cli
 repository: OWNER/REPO (main, private)
 cli: ready            (read access verified)
+bootstrap: created in this run / reused existing binding
 outstanding: device audit (not implemented in this version)
 ```
 
-Close with three statements: no repository content was written and no authentication or host
+Close with three statements: no repository content was changed after bootstrap; if this was the first
+run, report the exact repository-creation command and resulting initial commit separately; any
+approved local installation or login command is also reported separately, and no other host
 configuration was changed; the bound repository is `OWNER/REPO` on `main`; the next step is a
 read-only device audit, which this version does not implement.
 
@@ -230,6 +307,7 @@ read-only device audit, which this version does not implement.
 | `unavailable` | the CLI is absent or local command execution is unavailable | that the user has no GitHub access by another route |
 | `unauthenticated` | the CLI exists but presents no valid identity (`401`, no login) | that the account lacks repository permission |
 | `insufficient-permissions` | authenticated, and a read was explicitly refused (`403`) for that repository | that the token is invalid |
+| `out-of-scope` | the requested repository owner does not match the authenticated user's login | that the repository does not exist |
 | `unverified` | no verdict at the required scope: not yet bound, ambiguous `404`, uninspectable capability, or an inconclusive error | anything about the backend's real state |
 
 `unverified` is the right answer more often than it feels. Use it whenever the evidence does not
@@ -255,7 +333,8 @@ Re-running is safe because nothing is stored and every question is answered by a
 
 ## Never in this flow
 
-- No file writes, branches, pull requests or commits, including "test" commits.
+- No repository file writes, branches, pull requests or commits after bootstrap. The only exception is
+  the first-run `gh repo create --add-readme` operation explicitly approved for the new repository.
 - No edits to host configuration, environment or credential files.
 - No credential values in output, logs or diffs, including in the S6 summary.
 - No assumption that this repository is the user's infrastructure repository.

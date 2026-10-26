@@ -2,12 +2,17 @@
 
 These are the **default InfraKeeper permissions**; actual actions remain subject to platform and repository access controls.
 
+The selected repository must be owned by the authenticated GitHub user. Organization repositories,
+collaborator repositories and repositories owned by another user are outside the scope of this
+workflow, even when GitHub grants the account access.
+
 | Operation | Default |
 | --- | --- |
 | Read repository metadata, paths, files, Git history | Automatic |
 | Search repository content; view commits and checks | Automatic |
 | Create or edit documents; append maintenance records | Explicit task-scoped conversational authorization; no duplicate approval |
 | Update multiple related documents | One explicit approval covering the related bounded task |
+| First-run create one personal private repository | One separate explicit bootstrap approval; no repeat on later setup runs |
 | Move/rename/delete documents or retire records | Fresh separate approval |
 | Make a new corrective/revert commit | Fresh explicit approval |
 | Create/manage branches; create/merge PRs | Disabled |
@@ -60,7 +65,7 @@ This gate is part of every approved documentation transaction, not an optional a
 2. **Validate the candidate before mutation:** inspect supported claims and timestamps, privacy/secrets, exact permitted paths, syntactic Markdown links and filename-like references (including inline code and table cells). Resolve relative paths from the *source Markdown directory*. Reject unexpanded concrete-path placeholders. A target not yet on GitHub is permissible only if it is in the explicit approved batch target set; by batch closure it must exist.
 3. **Enforce BLOCK:** any in-scope unresolved reference, missing promised target, unsupported material conclusion, unauthorized edit, secret exposure, or conflict aborts the write. Logging an error and continuing is forbidden. Repair candidate material within existing approval only when its meaning and scope remain authorized; otherwise request new approval.
 4. **Handle WARN separately:** report pre-existing failures outside task scope without silently changing them. Run a repository-wide check when practicable but never conflate its result with acceptance of changed/affected files. A known out-of-scope broken link is not permission to expand edits.
-5. **Commit, then verify:** only after PASS, submit the approved update with backend-supported version preconditions; read back committed contents, compare to the prepared candidate, and re-check changed/affected links. A failed post-write check is a reported partial failure, not grounds for an unauthorized repair.
+5. **Commit, then verify:** only after PASS, submit the approved update with backend-supported version preconditions; read back committed contents, compare to the prepared candidate, and re-check changed/affected links. A failed post-write check is a reported partial failure, not grounds for an unauthorized repair. The first-run repository bootstrap is a separate creation transaction and must be verified before binding.
 6. **Report exact units:** commits, changed files, correction commits, corrected issues and remaining failures are distinct counts. Separate task validation, optional whole-repository validation and runtime/service acceptance.
 
 A pre-write local or agent-side check never supplies a server-side concurrency guarantee. Continue using the conditional-update/conflict rules below.
