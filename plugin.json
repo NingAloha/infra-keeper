@@ -1,14 +1,15 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "infra-keeper",
-  "version": "0.1.0",
-  "description": "Evidence-first infrastructure documentation maintenance with GitHub MCP or CLI.",
+  "version": "0.2.0",
+  "description": "Evidence-first infrastructure documentation maintenance with GitHub CLI.",
   "repository": "https://github.com/NingAloha/infra-keeper",
   "license": "MIT",
   "keywords": [
     "infrastructure",
     "github",
     "devops",
-    "agent-skill"
+    "agent-skill",
+    "github-cli"
   ]
 }

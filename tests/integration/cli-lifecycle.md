@@ -8,8 +8,8 @@
 
 ## Purpose
 
-Exercise the `gh` / Contents API write lifecycle that the MCP lifecycle test left unverified for
-this backend: creation, an update conditioned on the blob SHA, the agent's own stop-on-change
+Exercise the `gh` / Contents API write lifecycle that earlier checks left unverified for this
+backend: creation, an update conditioned on the blob SHA, the agent's own stop-on-change
 guard, a stale-SHA negative test, a delete that is conditioned on the blob SHA, and restoration
 by a new commit.
 
@@ -86,7 +86,7 @@ Result: `HTTP/2.0 409 Conflict`, with body
 `{"message":"tests/integration/cli-lifecycle.md does not match b49bcce63c402b70e0a0b5e35dd9d3e450abb83b","status":"409"}`.
 The response carried `Server: github.com`, `X-Github-Request-Id` and
 `X-Github-Api-Version-Selected`, so the rejection came from the API rather than from a client-side
-pre-check of the kind the MCP path produced. Afterwards `HEAD` was still `ed63fad4…`, the blob was
+pre-check. Afterwards `HEAD` was still `ed63fad4…`, the blob was
 still `f066ac51…`, the raw bytes hashed to the same digest and the commit count was unchanged: the
 rejected request produced no observable repository changes in this test.
 
@@ -100,7 +100,7 @@ The pre-delete snapshot was 4326 bytes, SHA-256
 `f066ac51c6d3161ad9558a77834c07aca07cf156`, and the DELETE request carried that blob as `sha`.
 Result `HTTP/2.0 200 OK`; `main` advanced from `ed63fad49e650bccd1ef96d8c0ca2989924b2d6e` to
 `95b3d34b9ecde11fac08256c06b8504b5f3ba295`: one commit, `status: removed`, `+0/-82`, one path. The
-path then returned 404 and `mcp-lifecycle.md` was unchanged.
+path then returned 404 and the unrelated fixture file was unchanged.
 
 This shows that a delete carrying a **matching** identifier succeeds. It does not show that a
 delete with a stale identifier is rejected; that negative delete was deliberately not attempted,

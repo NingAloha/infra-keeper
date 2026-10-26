@@ -2,7 +2,7 @@
 
 Official manual: https://cli.github.com/manual/
 
-Use this backend only when the Agent has authorized local command execution and GitHub CLI is installed and authenticated. A local `gh` installation is **optional** when MCP is available.
+Use this backend only when the Agent has authorized local command execution and GitHub CLI is installed and authenticated. This is the only GitHub backend provided by this version of InfraKeeper.
 
 ## Readiness
 
@@ -13,6 +13,27 @@ gh repo view OWNER/REPO --json nameWithOwner,defaultBranchRef
 ```
 
 If not authenticated, tell the user to authenticate in their own terminal using `gh auth login` or their host's secure credential mechanism; **never ask them to paste access tokens in chat or commit them**. Check actual repository access with the chosen identity; a successful login alone does not imply write permission. `GH_TOKEN` is supported for noninteractive environments, but credentials must come from a secure external source.
+
+## Bundled JSON CLI helper
+
+When the host can execute packaged scripts, prefer:
+
+```sh
+python3 skills/infra-keeper/scripts/gh_backend.py authenticated-user
+python3 skills/infra-keeper/scripts/gh_backend.py repository --owner OWNER --repo REPO
+python3 skills/infra-keeper/scripts/gh_backend.py get-file --owner OWNER --repo REPO --path README.md --branch main
+python3 skills/infra-keeper/scripts/gh_backend.py list-directory --owner OWNER --repo REPO --branch main
+python3 skills/infra-keeper/scripts/gh_backend.py list-commits --owner OWNER --repo REPO --branch main
+```
+
+The helper calls `gh api` without a shell, emits machine-readable JSON, validates repository paths,
+and keeps credentials in `gh`'s own credential mechanism. It supports `create-or-update-file` and
+`delete-file` only with `--approved`; updates require `--expected-sha`, deletes always require a
+matching `--expected-sha`, and both can check `--expected-head-sha`. Use a temporary content file for
+larger approved documents rather than putting sensitive values in command arguments.
+
+The helper is an execution aid, not a second authorization layer. The Skill must still establish
+the exact approved path, content/diff, impact and rollback before passing `--approved`.
 
 ## Read operations (no mutation)
 

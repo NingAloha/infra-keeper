@@ -38,6 +38,6 @@ write-approval flow is followed by Hermes Desktop as the client.
 
 ## Limitations
 
-- No GitHub MCP connection was configured for this test, so only the CLI backend was exercised.
+- This test exercised only the GitHub CLI backend; no other GitHub integration is part of this version.
 - This record documents an integration test of documentation tooling. It is not evidence of runtime
   or infrastructure health, and no infrastructure took part in the test at any stage.

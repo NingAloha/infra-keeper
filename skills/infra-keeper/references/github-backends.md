@@ -1,22 +1,21 @@
 # GitHub backend selection
 
-InfraKeeper supports **two alternative GitHub operation backends**, not two simultaneous mandatory dependencies:
+InfraKeeper supports one GitHub operation backend:
 
 | Backend | Requirements | Best for |
 | --- | --- | --- |
-| GitHub MCP | MCP-enabled agent host, connected identity, exposed repository tools | Hosted / desktop agent integrations |
 | GitHub CLI `gh` | Shell execution, installed `gh`, authenticated account | Local agents, terminals |
 
 ## First-time setup
 
-A request to initialize InfraKeeper, configure or connect a backend, add a second backend, or
-re-verify a connection belongs to the [setup wizard](setup-wizard.md), not to this section. The
+A request to initialize InfraKeeper, configure or connect the CLI, or re-verify a connection belongs
+to the [setup wizard](setup-wizard.md), not to this section. The
 wizard owns user onboarding and the read-only readiness verdict per backend, including the states,
 the probes and the configuration guidance. Do not restate those steps here.
 
 The negotiation below covers ordinary documentation work once at least one backend is usable. It
-keeps its own rules, and the wizard does not restate them. This version supports GitHub MCP, GitHub
-CLI, or both; no Local Workspace or Local Git backend exists.
+keeps its own rules, and the wizard does not restate them. This version supports only GitHub CLI;
+no GitHub MCP, Local Workspace or Local Git backend exists.
 
 ## Capability negotiation
 
@@ -24,12 +23,12 @@ CLI, or both; no Local Workspace or Local Git backend exists.
    established in the conversation, or a stored InfraKeeper binding (`repository` + `branch`) for
    this user — and never guess an unrelated repository. A binding narrows reads to one repository;
    it never authorizes writes and never overrides an exclusion.
-2. Detect available GitHub MCP tools and check whether they can fulfill the specific operation.
-3. Otherwise, when local commands are permitted, check `gh --version` and `gh auth status` (never print tokens).
-4. State the selected backend and scope before operations. If changing backend during a workflow, disclose the reason.
+2. When local commands are permitted, check `gh --version` and `gh auth status` (never print tokens).
+3. Prefer the bundled JSON CLI helper for structured operations; use direct `gh` commands only as a disclosed fallback.
+4. State the selected CLI path and scope before operations.
 5. Backend choice **does not** supersede approval, account permissions, platform rules, branch restrictions, or GitHub protections.
 
-A missing tool or unconfigured integration can justify switching to the other supported backend. A **denied operation** cannot: stop instead of trying a second channel to bypass it. Do not combine writes from two backends in one approval scope without renewed review.
+A missing CLI capability can justify using the helper's direct `gh` fallback. A **denied operation** cannot: stop instead of trying another channel to bypass it.
 
 ## Common behavioral contract
 
@@ -42,4 +41,4 @@ A missing tool or unconfigured integration can justify switching to the other su
 - Public repositories and Git histories must not receive credentials or sensitive internal configuration.
 - Documentation verification is not runtime verification.
 
-See [GitHub MCP](github-mcp.md), [GitHub CLI](github-cli.md) and [GitHub workflow](github-workflow.md).
+See [GitHub CLI](github-cli.md) and [GitHub workflow](github-workflow.md).

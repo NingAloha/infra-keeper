@@ -1,6 +1,6 @@
 ---
 name: infra-keeper
-description: Initialize InfraKeeper, configure or re-verify GitHub access (初始化、配置 GitHub 后端、重新验证连接), and maintain documented infrastructure using GitHub MCP or GitHub CLI, including repository discovery, evidence review, workstation audit, guided user-executed changes and conversation-authorized documentation commits to main.
+description: Initialize InfraKeeper, configure or re-verify GitHub CLI access (初始化、配置 GitHub CLI、重新验证连接), and maintain documented infrastructure using gh, including repository discovery, evidence review, workstation audit, guided user-executed changes and conversation-authorized documentation commits to main.
 ---
 
 # InfraKeeper
@@ -9,13 +9,14 @@ InfraKeeper helps an agent maintain a **versioned infrastructure documentation r
 
 ## Setup (first run)
 
-When the user asks to initialize InfraKeeper, configure or connect a GitHub backend, add a second
-backend, or re-verify an existing connection, read [setup wizard](references/setup-wizard.md) and
-follow it. That flow is read-only: it inspects host capabilities, guides MCP and/or CLI
-configuration, binds a target `OWNER/REPO`, and reports per-backend readiness.
+When the user asks to initialize InfraKeeper, configure or connect GitHub CLI, or re-verify the
+existing connection, read [setup wizard](references/setup-wizard.md) and follow it. That flow is
+read-only: it inspects local command capability, guides CLI authentication, binds a target
+`OWNER/REPO`, and reports CLI readiness.
 
 It never writes repository content, never changes host configuration or credentials, and never
-receives a token. MCP, CLI or both may be configured; this version offers no other backend.
+receives a token. This version uses only the local GitHub CLI (`gh`) backend. It does not configure,
+invoke or fall back to another GitHub integration.
 
 During setup, step 1 of "Repository discovery and evidence" does not apply: no repository is
 enumerated, searched or read until the user names one, and a repository the user excludes is never
@@ -29,16 +30,16 @@ as write permission, and never overrides an exclusion.
 Everything below applies to documented-infrastructure work after setup. A request to read or
 maintain infrastructure records does **not** enter the setup flow.
 
-## Select a GitHub backend
+## Select the GitHub CLI backend
 
 Read [GitHub backends](references/github-backends.md) first.
 
-1. Prefer an available, authenticated **GitHub MCP** connection that provides the required operation.
-2. If MCP is not configured or lacks a required capability, use the local **GitHub CLI (`gh`)** only when shell access and a properly authenticated CLI are available **and the switch is permitted and clearly disclosed**.
-3. Do not silently change execution backends, and **never switch backends to evade a tool denial, policy prohibition, safety rejection, or access-control restriction**.
-4. If neither backend is usable, explain how to configure one; provide a read-only plan rather than pretending access.
+1. Use the local **GitHub CLI (`gh`)** only when shell access and a properly authenticated CLI are available.
+2. Prefer the bundled JSON CLI helper described in [GitHub CLI instructions](references/github-cli.md#bundled-json-cli-helper) for structured reads and guarded Contents API writes.
+3. If the helper cannot run, use direct `gh` commands only when the host permits them and disclose that fallback.
+4. Do not silently change the execution path, and **never switch to another backend to evade a tool denial, policy prohibition, safety rejection, or access-control restriction**.
 
-Read [MCP instructions](references/github-mcp.md) or [CLI instructions](references/github-cli.md) according to the selected backend. A Skill supplies instructions; it cannot itself provision GitHub access or grant scopes.
+Read [CLI instructions](references/github-cli.md) according to the selected path. A Skill supplies instructions; it cannot itself provision GitHub access or grant scopes.
 
 ## Repository layout
 
