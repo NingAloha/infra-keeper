@@ -34,10 +34,11 @@ to the user's terminal only when the host lacks the required capability, and nev
 or stores a token.
 
 After S5 succeeds, InfraKeeper stores only binding metadata in a local app state file: the repository,
-`main` branch, current `main` HEAD SHA, bootstrap status and optional initial commit SHA. After every
-successful documentation commit, the local HEAD SHA is updated. Each new agent session reads the file
-first and compares it with GitHub before use; a mismatch is reported and automatic writes stop. It never
-stores tokens, `gh` credentials or repository contents.
+`main` branch, the last confirmed GitHub `main` HEAD SHA, bootstrap status and optional initial commit
+SHA. After every successful documentation commit, that checkpoint is updated from GitHub's returned
+commit SHA. Each new agent session reads it first and compares it with GitHub; if GitHub has changed
+since the checkpoint, the change is reported and automatic writes stop. It never stores tokens, `gh`
+credentials or repository contents.
 
 ## Package layout
 
