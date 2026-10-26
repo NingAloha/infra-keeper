@@ -491,7 +491,8 @@ def ensure_device_branch(args: argparse.Namespace) -> dict[str, Any]:
     enforce_personal_repository(owner, repo)
     state, ref = require_bound_device_state(owner, repo)
     current_main = head_sha(owner, repo, "main")
-    if args.main_head_sha is not None and current_main != sha(args.main_head_sha, "main-head-sha"):
+    expected_main = sha(args.main_head_sha, "main-head-sha")
+    if current_main != expected_main:
         raise BackendError(
             f"main changed before device branch creation (expected {args.main_head_sha}, current {current_main})"
         )
@@ -753,6 +754,8 @@ def write_file(args: argparse.Namespace) -> dict[str, Any]:
     if ref != bound_branch:
         raise BackendError(f"documentation writes must target the bound device branch {bound_branch}")
     message = required_text(args.commit_message, "commit-message")
+    if args.expected_head_sha is None:
+        raise BackendError("--expected-head-sha is required for every documentation write")
     check_head(owner, repo, ref, args.expected_head_sha)
 
     if args.content_file:
@@ -820,6 +823,8 @@ def delete_file(args: argparse.Namespace) -> dict[str, Any]:
     if ref != bound_branch:
         raise BackendError(f"documentation writes must target the bound device branch {bound_branch}")
     expected = sha(args.expected_sha, "expected-sha")
+    if args.expected_head_sha is None:
+        raise BackendError("--expected-head-sha is required for every documentation deletion")
     check_head(owner, repo, ref, args.expected_head_sha)
     existing = current_file(owner, repo, path, ref)
     if expected != existing.get("sha"):
@@ -934,7 +939,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     device_branch_parser = subparsers.add_parser("ensure-device-branch")
     add_repository_args(device_branch_parser)
-    device_branch_parser.add_argument("--main-head-sha")
+    device_branch_parser.add_argument("--main-head-sha", required=True)
     device_branch_parser.add_argument("--approved", action="store_true")
     device_branch_parser.set_defaults(handler=ensure_device_branch)
 
@@ -959,7 +964,7 @@ def build_parser() -> argparse.ArgumentParser:
     write_parser.add_argument("--commit-message", required=True)
     write_parser.add_argument("--approved", action="store_true")
     write_parser.add_argument("--expected-sha")
-    write_parser.add_argument("--expected-head-sha")
+    write_parser.add_argument("--expected-head-sha", required=True)
     write_parser.set_defaults(handler=write_file)
 
     delete_parser = subparsers.add_parser("delete-file")
@@ -968,7 +973,7 @@ def build_parser() -> argparse.ArgumentParser:
     delete_parser.add_argument("--commit-message", required=True)
     delete_parser.add_argument("--approved", action="store_true")
     delete_parser.add_argument("--expected-sha", required=True)
-    delete_parser.add_argument("--expected-head-sha")
+    delete_parser.add_argument("--expected-head-sha", required=True)
     delete_parser.set_defaults(handler=delete_file)
     return parser
 

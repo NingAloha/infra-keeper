@@ -49,8 +49,9 @@ rewind, divergence or history rewrite. `bind-device` records the device-local br
 `ensure-device-branch` creates only that branch after task approval. Write the initial binding only after
 the repository metadata, `main` HEAD and root listing have passed S5; `--verified` is a required guard.
 The state file is local to the host and is not committed to GitHub. It supports `create-or-update-file` and
-`delete-file` only with `--approved`; updates require `--expected-sha`, deletes always require a
-matching `--expected-sha`, and both can check `--expected-head-sha`. Use a temporary content file for
+`delete-file` only with `--approved` and a current `--expected-head-sha`; updates require `--expected-sha`,
+deletes always require a matching `--expected-sha`. Device-branch creation likewise requires the reviewed
+`--main-head-sha`. Use a temporary content file for
 larger approved documents rather than putting sensitive values in command arguments.
 
 The helper is an execution aid, not a second authorization layer. The Skill must still establish

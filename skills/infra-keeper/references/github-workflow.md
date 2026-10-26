@@ -82,8 +82,9 @@ A pre-write local or agent-side check never supplies a server-side concurrency g
 ## Version checks before writing
 
 1. Read each file's version identifier from the same branch you will write to, immediately before the write.
-2. Distinguish the operation before deciding what the identifier means:
-   - **Creating a new path.** There is no pre-image to condition on. The review that matters is whether the path should be created at all; a version check cannot guard it.
+2. Distinguish the operation before deciding what the identifier means. Every create, update or delete
+   through the bundled helper must include the current target-branch HEAD as a precondition:
+   - **Creating a new path.** There is no file pre-image to condition on, so the target-branch HEAD is the required concurrency precondition. The review still determines whether the path should be created at all.
    - **Updating an existing path.** Supply the version identifier required by the backend for a conditional update. If the backend does not support or receive such a precondition, do not assume the update is protected against concurrent modification; its behavior must be verified.
    - **Deleting or moving a path.** If the backend accepts no identifier for the operation, it cannot be made conditional at all. See [Backends without conditional delete](#backends-without-conditional-delete).
 3. Backends differ in parameter names and semantics (`sha`, blob SHA, `ref`, expected-version token) and some accept none of them. Read the tool's actual schema instead of assuming that a familiar field name implies the same guarantee.
