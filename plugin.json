@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "infra-keeper",
-  "version": "0.2.9",
+  "version": "0.3.0",
   "description": "Evidence-first infrastructure documentation maintenance with GitHub CLI.",
   "repository": "https://github.com/NingAloha/infra-keeper",
   "license": "MIT",

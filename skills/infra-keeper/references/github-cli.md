@@ -23,10 +23,13 @@ python3 skills/infra-keeper/scripts/gh_backend.py authenticated-user
 python3 skills/infra-keeper/scripts/gh_backend.py read-state
 python3 skills/infra-keeper/scripts/gh_backend.py repository-head --owner OWNER --repo REPO --branch main
 python3 skills/infra-keeper/scripts/gh_backend.py sync-binding-head --owner OWNER --repo REPO --branch main
+# only when the current task discusses an existing device branch
+python3 skills/infra-keeper/scripts/gh_backend.py sync-binding-head --owner OWNER --repo REPO --branch infra/device/DEVICE_ID --activate
+python3 skills/infra-keeper/scripts/gh_backend.py bind-device --owner OWNER --repo REPO --device-id DEVICE_ID --verified
+python3 skills/infra-keeper/scripts/gh_backend.py ensure-device-branch --owner OWNER --repo REPO --main-head-sha MAIN_HEAD_SHA --approved
 python3 skills/infra-keeper/scripts/gh_backend.py repository --owner OWNER --repo REPO
 python3 skills/infra-keeper/scripts/gh_backend.py create-repository --owner OWNER --repo REPO --approved
-python3 skills/infra-keeper/scripts/gh_backend.py write-binding --owner OWNER --repo REPO --branch main --bootstrap-status created --initial-commit-sha INITIAL_SHA --head-sha HEAD_SHA --verified
-python3 skills/infra-keeper/scripts/gh_backend.py update-binding-head --owner OWNER --repo REPO --branch main --head-sha HEAD_SHA --verified
+python3 skills/infra-keeper/scripts/gh_backend.py write-binding --owner OWNER --repo REPO --branch main --bootstrap-status created --initial-commit-sha INITIAL_SHA --head-sha HEAD_SHA --device-id DEVICE_ID --verified
 python3 skills/infra-keeper/scripts/gh_backend.py get-file --owner OWNER --repo REPO --path README.md --branch main
 python3 skills/infra-keeper/scripts/gh_backend.py list-directory --owner OWNER --repo REPO --branch main
 python3 skills/infra-keeper/scripts/gh_backend.py list-commits --owner OWNER --repo REPO --branch main
@@ -36,11 +39,12 @@ The helper calls `gh api` without a shell, emits machine-readable JSON, validate
 requires the requested repository owner to match the authenticated user's GitHub login, and keeps
 credentials in `gh`'s own credential mechanism. Its `create-repository` command is only for the
 first-run bootstrap, defaults to a private repository with `--add-readme`, and requires `--approved`.
-Its `read-state`, `write-binding` and `update-binding-head` commands manage only the local non-secret
-binding state. `repository-head` reads the exact `main` HEAD SHA. `sync-binding-head` compares the
-stored checkpoint with GitHub's commit graph and updates local state only when the remote `main` is a
-normal descendant; it returns `changed-since-state` without updating state for a rewind, divergence or
-history rewrite. Write the initial binding only after
+Its `read-state`, `write-binding`, `bind-device` and `update-binding-head` commands manage only the local
+non-secret binding state. `repository-head` reads a branch HEAD. `sync-binding-head` compares the stored
+checkpoint for the requested branch with GitHub's commit graph and updates local state only when the
+remote branch is a normal descendant; it returns `changed-since-state` without updating state for a
+rewind, divergence or history rewrite. `bind-device` records the device-local branch identity, and
+`ensure-device-branch` creates only that branch after task approval. Write the initial binding only after
 the repository metadata, `main` HEAD and root listing have passed S5; `--verified` is a required guard.
 The state file is local to the host and is not committed to GitHub. It supports `create-or-update-file` and
 `delete-file` only with `--approved`; updates require `--expected-sha`, deletes always require a
@@ -49,6 +53,12 @@ larger approved documents rather than putting sensitive values in command argume
 
 The helper is an execution aid, not a second authorization layer. The Skill must still establish
 the exact approved path, content/diff, impact and rollback before passing `--approved`.
+
+Use `sync-binding-head --branch main` during every session preflight. When the current task discusses a
+device, activate only that device's checkpoint with
+`sync-binding-head --branch infra/device/DEVICE_ID --activate` when the branch already exists. A missing
+device branch must be created through the approved `ensure-device-branch` flow; do not activate arbitrary
+branches or synchronize every device branch during preflight.
 
 ## Read operations (no mutation)
 
@@ -59,7 +69,7 @@ gh api repos/OWNER/REPO/commits?sha=main --method GET
 gh api repos/OWNER/REPO/git/trees/main -f recursive=1 --method GET
 ```
 
-Use `gh api` or permitted local read-only Git commands where appropriate; inspect returned data carefully. Before a direct `gh` fallback, run `gh api user`, compare its `login` with the requested `OWNER`, and stop on a mismatch. Avoid printing authentication headers, sensitive URLs, or secret-bearing raw logs. Check whether the repository actually has a `main` branch before proceeding.
+Use `gh api` or the bundled helper for repository reads and inspect returned data carefully. Before a direct `gh` fallback, run `gh api user`, compare its `login` with the requested `OWNER`, and stop on a mismatch. Avoid printing authentication headers, sensitive URLs, or secret-bearing raw logs. Check whether the repository actually has a `main` branch before proceeding.
 
 ## Version preconditions (measured)
 
@@ -83,19 +93,23 @@ one would be refused.
 
 ## Writes: approval first
 
-For an approved documentation change, use the bundled helper so the commit is created directly on
-GitHub through `gh`. These commands are **illustrative**, not unattended commands:
+For an approved documentation change, use the bundled helper so commits are created directly on the
+active device branch through `gh`. These commands are **illustrative**, not unattended commands:
 
 ```sh
-# review the approved file and confirm the current remote main has not changed
-python3 skills/infra-keeper/scripts/gh_backend.py get-file --owner OWNER --repo REPO --path path/to/approved-file.md --branch main
-# create or update directly on GitHub only after approval and SHA checks
-python3 skills/infra-keeper/scripts/gh_backend.py create-or-update-file --owner OWNER --repo REPO --branch main --path path/to/approved-file.md --content-file /tmp/approved-file.md --commit-message "docs: update approved infrastructure record" --approved --expected-head-sha HEAD_SHA
+# read navigation on canonical main and ensure the active device branch
+python3 skills/infra-keeper/scripts/gh_backend.py get-file --owner OWNER --repo REPO --path README.md --branch main
+python3 skills/infra-keeper/scripts/gh_backend.py ensure-device-branch --owner OWNER --repo REPO --main-head-sha MAIN_HEAD_SHA --approved
+# read the approved file from the active device branch before preparing its update
+python3 skills/infra-keeper/scripts/gh_backend.py get-file --owner OWNER --repo REPO --path path/to/approved-file.md --branch DEVICE_BRANCH
+# create or update only on the device branch after approval and SHA checks
+python3 skills/infra-keeper/scripts/gh_backend.py create-or-update-file --owner OWNER --repo REPO --branch DEVICE_BRANCH --path path/to/approved-file.md --content-file /tmp/approved-file.md --commit-message "docs: update approved infrastructure record" --approved --expected-head-sha DEVICE_HEAD_SHA --expected-sha FILE_SHA
 ```
 
-The helper updates the local checkpoint from the returned GitHub commit SHA after a successful write.
-If the remote HEAD or file SHA changes during preparation, stop and reassess. Verify remote files and
-the final commit through GitHub reads after the write.
+The helper updates the local checkpoint for the active device branch after a successful branch write.
+The canonical `main` checkpoint is updated only by the normal session preflight. If the active branch or
+file SHA changes during preparation, stop and reassess. Verify the final branch contents through GitHub
+reads after the write.
 
 Alternatively, a client may use approved direct `gh api` GitHub Contents API or Git Tree/Commit API
 calls, but must respect version SHA preconditions and partial-update risks. See [Version preconditions (measured)](#version-preconditions-measured)
@@ -106,9 +120,10 @@ shell command arguments, files or logs.
 
 The following are disabled by InfraKeeper policy even if `gh` could execute them: repositories owned by
 an organization, a collaborator, or another user; creating a second repository after bootstrap;
-branch creation/deletion, pull requests, force pushes, history rewriting, repository
-settings/visibility changes, and privilege escalation. The only repository-creation exception is the
-first-run personal private bootstrap described above. If GitHub or the tool host blocks a write,
+arbitrary branch lifecycle, force pushes, history rewriting, repository settings/visibility changes,
+and privilege escalation. The bound device branch and its task-scoped creation is the only branch
+lifecycle exception. The only repository-creation
+exception is the first-run personal private bootstrap described above. If GitHub or the tool host blocks a write,
 **stop**; do not try another backend to bypass the rejection.
 
 Official references:

@@ -38,9 +38,10 @@ A missing CLI capability can justify using the helper's direct `gh` fallback. A 
 
 ## Common behavioral contract
 
-- `main` only; no branch/PR lifecycle or force-push.
+- Read canonical navigation from `main`; write only to the active `infra/device/<device-id>` branch.
+- Device branches are not merged into `main`; no arbitrary branch lifecycle, force-push or history rewriting.
 - Automatically read/search/history/status.
-- Require concrete, explicit authorization before **every write**.
+- Require concrete, explicit authorization before **every branch or file write**.
 - Refresh file/version information immediately before an approved write; stop if changed.
 - Prefer atomic multi-file updates; otherwise disclose and monitor partial success.
 - Verify final GitHub state after committing and report commit SHA.

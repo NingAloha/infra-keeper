@@ -54,15 +54,15 @@ login. Organization, collaborator and other-user repositories are rejected befor
 On the first setup run with no stored binding, Hermes asks for a repository name, defaults to
 `infrastructure`, checks that the name is unused under the authenticated user, and requests one
 separate approval before creating a private repository with an initial README. After the repository
-is verified and bound, later setup runs only re-check it and never create another repository.
+is verified and bound, later setup runs only re-check it and never create another repository. Setup also
+binds a user-provided device name to a unique `infra/device/<device-id>` branch.
 
 After a successful verification, the bundled helper writes a small local state file containing only the
-binding metadata, `main` branch, the last confirmed GitHub `main` HEAD SHA, bootstrap status and optional
-initial commit SHA. Successful documentation commits update that checkpoint from GitHub's returned SHA.
-A new Hermes session reads the file before repository work or asking for a name. If GitHub's `main` is a
-normal descendant of the local checkpoint, Hermes advances the checkpoint and continues the ready flow.
-If the remote branch was rewound, diverged or rewritten, it reports the change and stops automatic writes.
-The file contains no token, credential data or repository contents.
+binding metadata, canonical `main` branch, a per-branch HEAD map, device ID and branch, bootstrap status and
+optional initial commit SHA. A new Hermes session reads and synchronizes `main` by default. When the current
+task discusses a device, Hermes activates only that device branch, validates its stored checkpoint and writes
+only there. Device branches are not merged into `main`, so independent device work has no merge step or merge
+conflict. The file contains no token, credential data or repository contents.
 
 ## Reload after an update
 

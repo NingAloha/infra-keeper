@@ -19,7 +19,8 @@ InfraKeeper is an experimental **Agent Plugin** that packages a standard **Agent
    displays or stores a token.
 5. If no local binding exists, choose a repository name; the default is `infrastructure`. If it already exists,
    the wizard asks for an unused name, requests one separate approval, creates a private personal
-   repository, and verifies it. Later runs only verify the stored binding. It reports one CLI verdict:
+   repository, verifies it, and binds a device name plus device branch. Later runs verify the repository and
+   device binding. It reports one CLI verdict:
    `ready`, `changed-since-state`, `unavailable`, `unauthenticated`, `insufficient-permissions`,
    `out-of-scope` or `unverified`.
 
@@ -34,12 +35,11 @@ to the user's terminal only when the host lacks the required capability, and nev
 or stores a token.
 
 After S5 succeeds, InfraKeeper stores only binding metadata in a local app state file: the repository,
-`main` branch, the last confirmed GitHub `main` HEAD SHA, bootstrap status and optional initial commit
-SHA. After every successful documentation commit, that checkpoint is updated from GitHub's returned
-commit SHA. On multiple devices, a new agent session advances its local checkpoint automatically when
-GitHub's `main` is a normal descendant of it and then continues the ready flow. If the remote branch
-has been rewound, diverged or rewritten, the change is reported and automatic writes stop. It never
-stores tokens, `gh` credentials or repository contents.
+canonical `main` branch, a per-branch HEAD map, this device's ID and branch, bootstrap status and optional
+initial commit SHA. A new agent session validates and advances `main` by default; a device branch checkpoint
+is activated only when the current task discusses that device. Device documentation is written only to its
+own branch and is never merged into `main`, so device writes do not create merge conflicts. It never stores
+tokens, `gh` credentials or repository contents.
 
 ## Package layout
 
@@ -73,7 +73,8 @@ See [Hermes Desktop integration notes](docs/hermes.md) for setup guidance.
 
 ## Safety policy
 
-- Normal documentation changes go directly to `main`; do not manage branches or PRs.
+- `main` contains only canonical navigation and shared entry points; each device writes only its own `infra/device/<device-id>` branch and never merges it into `main`.
+- A device branch is read and synchronized only when that device is in the current task; shared cross-device content is not silently written to a device branch.
 - The target repository owner must match the authenticated `gh` user; organization, collaborator and other-user repositories are out of scope.
 - On the first run with no binding, create one private personal repository only after separate approval; later setup runs never create another repository.
 - Reads, searches, history and status checks may be automatic.
@@ -86,5 +87,5 @@ See [Hermes Desktop integration notes](docs/hermes.md) for setup guidance.
 ## Current scope
 
 InfraKeeper maintains versioned infrastructure documentation in personal GitHub repositories through
-the local GitHub CLI. It supports evidence-first workstation and server records, guarded documentation
-writes on `main`, local binding state and automatic setup preflight.
+the local GitHub CLI. It supports evidence-first workstation and server records, guarded per-device branch
+writes, per-branch local binding state and automatic setup preflight.

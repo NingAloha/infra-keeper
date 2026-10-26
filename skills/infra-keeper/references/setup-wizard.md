@@ -32,7 +32,7 @@ refresh of the local checkpoint are the only setup-time mutations allowed by thi
   never create a "test" commit or branch. There are zero GitHub writes unless this is the first run
   with no binding and the user separately approves creation of the named personal repository.
 - Never change the host's environment variables, shell profiles or credential files. The only local
-  file this flow may write is the app-owned binding state after S5 or its `head_sha` after a proven
+  file this flow may write is the app-owned binding state after S5 or its `main` branch checkpoint after a proven
   fast-forward; it contains no token, credential data or repository contents. **No silent
   installation or authentication**: if the user explicitly asks the assistant to install `gh`, show
   the exact command, package source and expected effect first, obtain separate approval for that
@@ -57,13 +57,14 @@ execution is available:
 1. Read the local state with `gh_backend.py read-state`.
 2. Run `gh --version` and `gh auth status`; report only redacted readiness facts.
 3. If a valid local binding exists, verify only that `OWNER/REPO@main` and its root listing are readable,
-   and compare GitHub's `main` commit graph with the stored `head_sha`. If the remote HEAD is a normal
-   descendant, refresh the local `head_sha` and continue; otherwise report the change and stop writes.
+   and compare GitHub's `main` commit graph with the stored `branches.main` checkpoint. If the remote HEAD
+   is a normal descendant, refresh that checkpoint and continue; otherwise report the change and stop writes. If
+   a device branch is bound, read its HEAD too; do not create or modify it during preflight.
 4. If no valid binding exists, report the scan result and then ask for a repository name. The default is
    `infrastructure`; no repository is enumerated or guessed.
 
 This preflight does not create a repository, install packages, start login, or change binding metadata.
-It may only refresh `head_sha` after proving that GitHub `main` is a normal descendant of the stored
+It may only refresh the `main` branch checkpoint after proving that GitHub `main` is a normal descendant of the stored
 checkpoint. All other local-state writes and all GitHub writes still use the approval gates below. A
 successful preflight may be summarized before the agent continues with the user's requested task.
 
@@ -240,7 +241,9 @@ full target is the authenticated user's `OWNER/infrastructure`. The user may cho
 6. Report the visibility and continue to S5 for the root read. Only a successful S5 result creates
    the stored binding. After S5, write the local state atomically with the verified repository,
    `main`, the verified HEAD SHA, and bootstrap status (`created` for this path plus the initial commit
-   SHA; `reused` for an existing binding). A failure to write local state does not change the GitHub verdict, but must be
+   SHA; `reused` for an existing binding). Ask for a stable device ID before writing the binding; the
+   device branch is derived as `infra/device/<device-id>` and is created only with the first approved
+   documentation task. A failure to write local state does not change the GitHub verdict, but must be
    reported because the next session may ask for the repository again.
 
 ## S5 — repository verification
@@ -252,7 +255,7 @@ the bound branch exists.
 | Observation | Status | Note |
 | --- | --- | --- |
 | probe succeeds and HEAD matches the checkpoint | `ready` | scope it: "read access to `OWNER/REPO@main`" |
-| probe succeeds and remote HEAD is a normal descendant | `ready` | refresh local `head_sha`, report the fast-forward and continue |
+| probe succeeds and remote HEAD is a normal descendant | `ready` | refresh local `branches.main`, report the fast-forward and continue |
 | probe succeeds but remote HEAD is behind, diverged or rewritten | `changed-since-state` | report both SHAs and the comparison result; stop automatic writes |
 | `401` | `unauthenticated` | identity expired or absent |
 | `403` | `insufficient-permissions` | explicit refusal for that resource |
@@ -282,8 +285,14 @@ Keep the record minimal and non-secret. The bundled helper stores a versioned JS
 
 ```json
 {
-  "version": 2,
-  "binding": {"repository": "OWNER/REPO", "branch": "main", "head_sha": "..."},
+  "version": 4,
+  "binding": {
+    "repository": "OWNER/REPO",
+    "branch": "main",
+    "branches": {"main": "...", "infra/device/laptop": "..."},
+    "device_id": "laptop",
+    "device_branch": "infra/device/laptop"
+  },
   "bootstrap": {"status": "created", "initial_commit_sha": "..."}
 }
 ```
@@ -291,9 +300,12 @@ Keep the record minimal and non-secret. The bundled helper stores a versioned JS
 For a reused existing binding, `bootstrap.status` is `reused` and the initial SHA may be absent.
 
 - `repository`: `OWNER/REPO`
-- `branch`: the branch that was verified, normally `main`
-- `head_sha`: the latest verified commit at `main`; update it after every successful documentation
-  commit and after a proven remote fast-forward on a new device
+- `branch`: the canonical branch that was verified, always `main`
+- `branches`: map each tracked branch to its latest verified HEAD SHA; `main` is the default checkpoint
+  and is refreshed on every session
+- `device_id`: the stable user-provided identifier for this device
+- `device_branch`: the only branch this device may write, derived as `infra/device/<device-id>`
+- device branch entries are activated and refreshed only when the current task discusses that device
 
 Store it in the bundled helper's app-owned local state file. On macOS this is under
 `~/Library/Application Support/InfraKeeper/state.json`; on Windows it is under the user's
@@ -301,7 +313,7 @@ Store it in the bundled helper's app-owned local state file. On macOS this is un
 `$XDG_STATE_HOME/infra-keeper/state.json` or `~/.local/state/infra-keeper/state.json`. Do not write
 it into the repository, and do not store tokens, `gh` credentials or repository contents. If the host
 does not allow this file to be read or written, say so and ask for `OWNER/REPO` each session instead. A
-state file without `head_sha` is upgraded after a successful fresh S5 verification.
+state file without a `branches.main` checkpoint is upgraded after a successful fresh S5 verification.
 
 Reuse: ordinary maintenance tasks use the bound repository directly, without re-running S1–S6 and
 without asking for the repository again. The user's current explicit selection, and any exclusion,
@@ -327,7 +339,7 @@ End every run with a table and a short summary for the CLI path:
 
 | Backend | Status | Evidence | Next action |
 | --- | --- | --- | --- |
-| GitHub CLI | `ready` | identity plus root listing of `OWNER/REPO@main` | none |
+| GitHub CLI | `ready` | identity plus root listing of `OWNER/REPO@main`; device branch binding recorded | none |
 
 Then print one short, copy-pasteable summary. It must contain no credentials, token fragments,
 scopes, host names or anything else sensitive:
@@ -336,15 +348,17 @@ scopes, host names or anything else sensitive:
 InfraKeeper setup — summary
 backend selected: cli
 repository: OWNER/REPO (main, private)
+device branch: infra/device/DEVICE_ID
 cli: ready            (read access verified)
 bootstrap: created in this run / reused existing binding
 ```
 
-Close with three statements: no repository content was changed after bootstrap; if this was the first
+Close with three statements: no repository content was changed during setup after bootstrap; branch,
+documentation and device-branch writes belong only to a later explicitly approved task; if this was the first
 run, report the exact repository-creation command and resulting initial commit separately; any
 approved local installation or login command is also reported separately, the local state file was
 written (or why it could not be written), and no other host configuration was changed; the bound
-repository is `OWNER/REPO` on `main`; the requested work can now continue.
+repository is `OWNER/REPO` on canonical `main`; device-specific writes use `infra/device/DEVICE_ID`; the requested work can now continue.
 
 ## Status vocabulary
 
@@ -381,8 +395,9 @@ answered by a fresh read.
 
 ## Never in this flow
 
-- No repository file writes, branches, pull requests or commits after bootstrap. The only exception is
-  the first-run `gh repo create --add-readme` operation explicitly approved for the new repository.
+- No repository file or branch writes during setup after bootstrap. The only
+  setup-time GitHub write is the first-run `gh repo create --add-readme` operation explicitly approved
+  for the new repository; later documentation tasks use the device-branch workflow.
 - No edits to host configuration, environment or credential files; the only local write is the
   app-owned, non-secret binding state after successful S5.
 - No credential values in output, logs or diffs, including in the S6 summary.

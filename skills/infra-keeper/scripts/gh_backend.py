@@ -24,8 +24,9 @@ GH_TIMEOUT_SECONDS = 30
 OWNER_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,38})$")
 REPO_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,99})$")
 SHA_RE = re.compile(r"^[0-9a-fA-F]{7,64}$")
-STATE_VERSION = 2
-SUPPORTED_STATE_VERSIONS = {1, STATE_VERSION}
+DEVICE_ID_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,31})$")
+STATE_VERSION = 4
+SUPPORTED_STATE_VERSIONS = {1, 2, 3, STATE_VERSION}
 
 
 class BackendError(Exception):
@@ -41,6 +42,17 @@ def required_text(value: Any, name: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise BackendError(f"{name} must be a non-empty string")
     return value.strip()
+
+
+def device_id(value: Any) -> str:
+    value = required_text(value, "device-id")
+    if not DEVICE_ID_RE.fullmatch(value):
+        raise BackendError("device-id must use 1-32 letters, digits, '.', '_' or '-' characters")
+    return value
+
+
+def device_branch(device: str) -> str:
+    return f"infra/device/{device}"
 
 
 def state_path() -> Path:
@@ -84,13 +96,28 @@ def load_state() -> dict[str, Any] | None:
     bootstrap = value.get("bootstrap")
     if not isinstance(bootstrap, dict) or bootstrap.get("status") not in {"created", "reused"}:
         raise BackendError("local InfraKeeper state has no valid bootstrap status")
+    branches: dict[str, str] = {}
+    if isinstance(binding.get("branches"), dict):
+        for branch_name, branch_head in binding["branches"].items():
+            branches[branch(branch_name)] = sha(branch_head, f"{branch_name}-head-sha")
+    elif "head_sha" in binding:
+        branches["main"] = sha(binding["head_sha"], "head-sha")
     normalized: dict[str, Any] = {
         "version": STATE_VERSION,
-        "binding": {"repository": f"{owner}/{repo}", "branch": "main"},
+        "binding": {"repository": f"{owner}/{repo}", "branch": "main", "branches": branches},
         "bootstrap": {"status": bootstrap["status"]},
     }
-    if "head_sha" in binding:
-        normalized["binding"]["head_sha"] = sha(binding["head_sha"], "head-sha")
+    if "device_id" in binding:
+        current_device_id = device_id(binding["device_id"])
+        expected_device_branch = device_branch(current_device_id)
+        stored_device_branch = binding.get("device_branch", expected_device_branch)
+        if stored_device_branch != expected_device_branch:
+            raise BackendError("local InfraKeeper state has an invalid device branch")
+        normalized["binding"]["device_id"] = current_device_id
+        normalized["binding"]["device_branch"] = expected_device_branch
+        if "device_head_sha" in binding:
+            device_head = sha(binding["device_head_sha"], "device-head-sha")
+            normalized["binding"]["branches"][expected_device_branch] = device_head
     if "initial_commit_sha" in bootstrap:
         normalized["bootstrap"]["initial_commit_sha"] = sha(
             bootstrap["initial_commit_sha"], "initial-commit-sha"
@@ -344,6 +371,17 @@ def repository_head(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
+def branch_head(args: argparse.Namespace) -> dict[str, Any]:
+    owner, repo = repository(args.owner, args.repo)
+    enforce_personal_repository(owner, repo)
+    ref = branch(args.branch)
+    return {
+        "repository": f"{owner}/{repo}",
+        "branch": ref,
+        "head_sha": head_sha(owner, repo, ref),
+    }
+
+
 def repository_info(args: argparse.Namespace) -> Any:
     owner, repo = repository(args.owner, args.repo)
     enforce_personal_repository(owner, repo)
@@ -361,13 +399,110 @@ def read_state(_: argparse.Namespace) -> dict[str, Any]:
     return {"action": "read-state", "present": True, **value}
 
 
-def update_binding_head(args: argparse.Namespace) -> dict[str, Any]:
+def branch_checkpoint(state: dict[str, Any], ref: str) -> str | None:
+    return state["binding"].get("branches", {}).get(ref)
+
+
+def set_branch_checkpoint(state: dict[str, Any], ref: str, value: str) -> None:
+    state.setdefault("binding", {}).setdefault("branches", {})[ref] = sha(value, f"{ref}-head-sha")
+
+
+def is_device_branch(ref: str) -> bool:
+    prefix, _, value = ref.partition("infra/device/")
+    return prefix == "" and bool(value) and DEVICE_ID_RE.fullmatch(value) is not None
+
+
+def require_bound_device_state(owner: str, repo: str) -> tuple[dict[str, Any], str]:
+    state = load_state()
+    if state is None:
+        raise BackendError("local InfraKeeper binding state is absent")
+    stored_owner, stored_repo = split_repository(state["binding"]["repository"])
+    if (stored_owner.casefold(), stored_repo.casefold()) != (owner.casefold(), repo.casefold()):
+        raise BackendError("local binding does not match the requested repository")
+    bound_branch = state["binding"].get("device_branch")
+    if not isinstance(bound_branch, str):
+        raise BackendError("local binding has no device branch; configure this device first")
+    return state, bound_branch
+
+
+def bind_device(args: argparse.Namespace) -> dict[str, Any]:
     if not args.verified:
-        raise BackendError("--verified is required after a successful commit and push")
+        raise BackendError("--verified is required after successful repository verification")
     owner, repo = repository(args.owner, args.repo)
     ref = branch(args.branch)
     if ref != "main":
         raise BackendError("InfraKeeper bindings must use the main branch")
+    state = load_state()
+    if state is None:
+        raise BackendError("local InfraKeeper binding state is absent")
+    stored_owner, stored_repo = split_repository(state["binding"]["repository"])
+    if (stored_owner.casefold(), stored_repo.casefold()) != (owner.casefold(), repo.casefold()):
+        raise BackendError("local binding does not match the requested repository")
+    current_device_id = device_id(args.device_id)
+    state["version"] = STATE_VERSION
+    state["binding"]["device_id"] = current_device_id
+    state["binding"]["device_branch"] = device_branch(current_device_id)
+    state["binding"].pop("device_head_sha", None)
+    save_state(state)
+    return {
+        "action": "bind-device",
+        "repository": f"{owner}/{repo}",
+        "device_id": current_device_id,
+        "device_branch": device_branch(current_device_id),
+    }
+
+
+def ensure_device_branch(args: argparse.Namespace) -> dict[str, Any]:
+    if not args.approved:
+        raise BackendError("--approved is required after explicit branch-creation approval")
+    owner, repo = repository(args.owner, args.repo)
+    enforce_personal_repository(owner, repo)
+    state, ref = require_bound_device_state(owner, repo)
+    current_main = head_sha(owner, repo, "main")
+    if args.main_head_sha is not None and current_main != sha(args.main_head_sha, "main-head-sha"):
+        raise BackendError(
+            f"main changed before device branch creation (expected {args.main_head_sha}, current {current_main})"
+        )
+    created = False
+    try:
+        current_branch = head_sha(owner, repo, ref)
+    except BackendError as exc:
+        if "404" not in str(exc):
+            raise
+        gh_api(
+            endpoint(owner, repo, "git/refs"),
+            method="POST",
+            body={"ref": f"refs/heads/{ref}", "sha": current_main},
+        )
+        current_branch = head_sha(owner, repo, ref)
+        created = True
+    previous_branch = branch_checkpoint(state, ref)
+    if previous_branch is not None and previous_branch != current_branch:
+        comparison = compare_heads(owner, repo, previous_branch, current_branch)
+        if comparison["status"] not in {"identical", "ahead"} or comparison["behind_by"] != 0:
+            raise BackendError(
+                f"device branch {ref} is not a normal descendant of the local checkpoint; "
+                f"comparison={comparison['status']}"
+            )
+    state["version"] = STATE_VERSION
+    set_branch_checkpoint(state, ref, current_branch)
+    save_state(state)
+    return {
+        "action": "ensure-device-branch",
+        "repository": f"{owner}/{repo}",
+        "branch": ref,
+        "head_sha": current_branch,
+        "main_head_sha": current_main,
+        "created": created,
+        "previous_head_sha": previous_branch,
+    }
+
+
+def update_binding_head(args: argparse.Namespace) -> dict[str, Any]:
+    if not args.verified:
+        raise BackendError("--verified is required after a successful remote branch update")
+    owner, repo = repository(args.owner, args.repo)
+    ref = branch(args.branch)
     new_head = sha(args.head_sha, "head-sha")
     enforce_personal_repository(owner, repo)
     actual_head = head_sha(owner, repo, ref)
@@ -382,7 +517,9 @@ def update_binding_head(args: argparse.Namespace) -> dict[str, Any]:
     if (stored_owner.casefold(), stored_repo.casefold()) != (owner.casefold(), repo.casefold()):
         raise BackendError("local binding does not match the requested repository")
     state["version"] = STATE_VERSION
-    state["binding"]["head_sha"] = new_head
+    if ref != "main" and not is_device_branch(ref):
+        raise BackendError("only main or an infra/device/<device-id> branch can be tracked")
+    set_branch_checkpoint(state, ref, new_head)
     save_state(state)
     return {
         "action": "update-state-head",
@@ -395,8 +532,8 @@ def update_binding_head(args: argparse.Namespace) -> dict[str, Any]:
 def sync_binding_head(args: argparse.Namespace) -> dict[str, Any]:
     owner, repo = repository(args.owner, args.repo)
     ref = branch(args.branch)
-    if ref != "main":
-        raise BackendError("InfraKeeper bindings must use the main branch")
+    if ref != "main" and not is_device_branch(ref):
+        raise BackendError("only main or an infra/device/<device-id> branch can be synchronized")
     enforce_personal_repository(owner, repo)
     state = load_state()
     if state is None:
@@ -404,9 +541,24 @@ def sync_binding_head(args: argparse.Namespace) -> dict[str, Any]:
     stored_owner, stored_repo = split_repository(state["binding"]["repository"])
     if (stored_owner.casefold(), stored_repo.casefold()) != (owner.casefold(), repo.casefold()):
         raise BackendError("local binding does not match the requested repository")
-    stored_head = state["binding"].get("head_sha")
+    stored_head = branch_checkpoint(state, ref)
     current_head = head_sha(owner, repo, ref)
     if stored_head is None:
+        if args.activate:
+            state["version"] = STATE_VERSION
+            set_branch_checkpoint(state, ref, current_head)
+            save_state(state)
+            return {
+                "action": "sync-binding-head",
+                "status": "ready",
+                "repository": f"{owner}/{repo}",
+                "branch": ref,
+                "previous_head_sha": None,
+                "head_sha": current_head,
+                "comparison": None,
+                "state_updated": True,
+                "activated": True,
+            }
         return {
             "action": "sync-binding-head",
             "status": "missing-checkpoint",
@@ -418,7 +570,7 @@ def sync_binding_head(args: argparse.Namespace) -> dict[str, Any]:
     comparison = compare_heads(owner, repo, stored_head, current_head)
     if comparison["status"] in {"identical", "ahead"} and comparison["behind_by"] == 0:
         state["version"] = STATE_VERSION
-        state["binding"]["head_sha"] = current_head
+        set_branch_checkpoint(state, ref, current_head)
         state_updated = current_head != stored_head
         if state_updated:
             save_state(state)
@@ -446,8 +598,6 @@ def sync_binding_head(args: argparse.Namespace) -> dict[str, Any]:
 
 def record_bound_head(owner: str, repo: str, ref: str, new_head: str) -> dict[str, Any]:
     """Best-effort local state update after a successful GitHub write."""
-    if ref != "main":
-        return {"state_updated": False, "state_update_reason": "binding branch is not main"}
     try:
         state = load_state()
     except BackendError as exc:
@@ -458,7 +608,9 @@ def record_bound_head(owner: str, repo: str, ref: str, new_head: str) -> dict[st
     if (stored_owner.casefold(), stored_repo.casefold()) != (owner.casefold(), repo.casefold()):
         return {"state_updated": False, "state_update_reason": "local binding does not match repository"}
     state["version"] = STATE_VERSION
-    state["binding"]["head_sha"] = sha(new_head, "head-sha")
+    if ref != "main" and state["binding"].get("device_branch") != ref:
+        return {"state_updated": False, "state_update_reason": "binding branch does not match repository"}
+    set_branch_checkpoint(state, ref, new_head)
     try:
         save_state(state)
     except BackendError as exc:
@@ -474,6 +626,7 @@ def write_binding(args: argparse.Namespace) -> dict[str, Any]:
     if ref != "main":
         raise BackendError("InfraKeeper bindings must use the main branch")
     head = sha(args.head_sha, "head-sha")
+    current_device_id = device_id(args.device_id)
     bootstrap: dict[str, Any] = {"status": args.bootstrap_status}
     if args.bootstrap_status == "created":
         bootstrap["initial_commit_sha"] = sha(args.initial_commit_sha, "initial-commit-sha")
@@ -481,7 +634,13 @@ def write_binding(args: argparse.Namespace) -> dict[str, Any]:
         bootstrap["initial_commit_sha"] = sha(args.initial_commit_sha, "initial-commit-sha")
     value = {
         "version": STATE_VERSION,
-        "binding": {"repository": f"{owner}/{repo}", "branch": ref, "head_sha": head},
+        "binding": {
+            "repository": f"{owner}/{repo}",
+            "branch": ref,
+            "branches": {"main": head},
+            "device_id": current_device_id,
+            "device_branch": device_branch(current_device_id),
+        },
         "bootstrap": bootstrap,
     }
     save_state(value)
@@ -490,6 +649,8 @@ def write_binding(args: argparse.Namespace) -> dict[str, Any]:
         "repository": f"{owner}/{repo}",
         "branch": ref,
         "head_sha": head,
+        "device_id": current_device_id,
+        "device_branch": device_branch(current_device_id),
         "bootstrap": bootstrap,
     }
 
@@ -574,6 +735,9 @@ def write_file(args: argparse.Namespace) -> dict[str, Any]:
     enforce_personal_repository(owner, repo)
     path = repo_path(args.path)
     ref = branch(args.branch)
+    _, bound_branch = require_bound_device_state(owner, repo)
+    if ref != bound_branch:
+        raise BackendError(f"documentation writes must target the bound device branch {bound_branch}")
     message = required_text(args.commit_message, "commit-message")
     check_head(owner, repo, ref, args.expected_head_sha)
 
@@ -638,6 +802,9 @@ def delete_file(args: argparse.Namespace) -> dict[str, Any]:
     enforce_personal_repository(owner, repo)
     path = repo_path(args.path)
     ref = branch(args.branch)
+    _, bound_branch = require_bound_device_state(owner, repo)
+    if ref != bound_branch:
+        raise BackendError(f"documentation writes must target the bound device branch {bound_branch}")
     expected = sha(args.expected_sha, "expected-sha")
     check_head(owner, repo, ref, args.expected_head_sha)
     existing = current_file(owner, repo, path, ref)
@@ -690,8 +857,16 @@ def build_parser() -> argparse.ArgumentParser:
     state_write_parser.add_argument("--bootstrap-status", choices=("created", "reused"), required=True)
     state_write_parser.add_argument("--initial-commit-sha")
     state_write_parser.add_argument("--head-sha", required=True)
+    state_write_parser.add_argument("--device-id", required=True)
     state_write_parser.add_argument("--verified", action="store_true")
     state_write_parser.set_defaults(handler=write_binding)
+
+    device_bind_parser = subparsers.add_parser("bind-device")
+    add_repository_args(device_bind_parser)
+    device_bind_parser.add_argument("--branch", default="main")
+    device_bind_parser.add_argument("--device-id", required=True)
+    device_bind_parser.add_argument("--verified", action="store_true")
+    device_bind_parser.set_defaults(handler=bind_device)
 
     state_head_parser = subparsers.add_parser("update-binding-head")
     add_repository_args(state_head_parser)
@@ -703,6 +878,11 @@ def build_parser() -> argparse.ArgumentParser:
     state_sync_parser = subparsers.add_parser("sync-binding-head")
     add_repository_args(state_sync_parser)
     state_sync_parser.add_argument("--branch", default="main")
+    state_sync_parser.add_argument(
+        "--activate",
+        action="store_true",
+        help="initialize a missing local checkpoint from the verified remote branch HEAD",
+    )
     state_sync_parser.set_defaults(handler=sync_binding_head)
 
     info_parser = subparsers.add_parser("repository")
@@ -727,6 +907,16 @@ def build_parser() -> argparse.ArgumentParser:
     head_parser = subparsers.add_parser("repository-head")
     add_ref_args(head_parser)
     head_parser.set_defaults(handler=repository_head)
+
+    branch_head_parser = subparsers.add_parser("branch-head")
+    add_ref_args(branch_head_parser)
+    branch_head_parser.set_defaults(handler=branch_head)
+
+    device_branch_parser = subparsers.add_parser("ensure-device-branch")
+    add_repository_args(device_branch_parser)
+    device_branch_parser.add_argument("--main-head-sha")
+    device_branch_parser.add_argument("--approved", action="store_true")
+    device_branch_parser.set_defaults(handler=ensure_device_branch)
 
     file_parser = subparsers.add_parser("get-file")
     add_ref_args(file_parser)

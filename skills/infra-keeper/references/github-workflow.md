@@ -1,4 +1,4 @@
-# Main-only GitHub workflow
+# Isolated device-branch GitHub workflow
 
 These are the **default InfraKeeper permissions**; actual actions remain subject to platform and repository access controls.
 
@@ -10,18 +10,18 @@ workflow, even when GitHub grants the account access.
 | --- | --- |
 | Read repository metadata, paths, files, Git history | Automatic |
 | Search repository content; view commits and checks | Automatic |
-| Create or edit documents; append maintenance records | Explicit task-scoped conversational authorization; no duplicate approval |
+| Create or edit documents on the bound device branch | Explicit task-scoped conversational authorization; no duplicate approval |
 | Update multiple related documents | One explicit approval covering the related bounded task |
 | First-run create one personal private repository | One separate explicit bootstrap approval; no repeat on later setup runs |
+| Create the bound device branch | Explicit task-scoped approval covering the documentation task |
 | Move/rename/delete documents or retire records | Fresh separate approval |
 | Make a new corrective/revert commit | Fresh explicit approval |
-| Create/manage branches; create/merge PRs | Disabled |
 | Force-push or rewrite history | Disabled |
 | Change repository settings, visibility or permissions | Disabled |
 
 ## Read-first procedure
 
-1. Resolve target repository and `main`. If it has no `main`, do not create or alter branches automatically; ask for an appropriate path forward.
+1. Resolve target repository and canonical `main`. If it has no `main`, do not create or alter branches automatically; ask for an appropriate path forward. When the task discusses a device, resolve and activate only that device's stored branch; do not synchronize other device branches.
 2. Read the root README/inventory, target device index and relevant service, system, network and route records.
 3. Read available history where chronology or conflicting records matter.
 4. Separate documented facts, newly reported information, verified observations and unresolved assumptions.
@@ -65,16 +65,16 @@ This gate is part of every approved documentation transaction, not an optional a
 2. **Validate the candidate before mutation:** inspect supported claims and timestamps, privacy/secrets, exact permitted paths, syntactic Markdown links and filename-like references (including inline code and table cells). Resolve relative paths from the *source Markdown directory*. Reject unexpanded concrete-path placeholders. A target not yet on GitHub is permissible only if it is in the explicit approved batch target set; by batch closure it must exist.
 3. **Enforce BLOCK:** any in-scope unresolved reference, missing promised target, unsupported material conclusion, unauthorized edit, secret exposure, or conflict aborts the write. Logging an error and continuing is forbidden. Repair candidate material within existing approval only when its meaning and scope remain authorized; otherwise request new approval.
 4. **Handle WARN separately:** report pre-existing failures outside task scope without silently changing them. Run a repository-wide check when practicable but never conflate its result with acceptance of changed/affected files. A known out-of-scope broken link is not permission to expand edits.
-5. **Commit, then verify:** only after PASS, submit the approved update with backend-supported version preconditions; read back committed contents, compare to the prepared candidate, re-check changed/affected links, and update the local binding's `main` HEAD SHA to the verified commit. A failed post-write check or local-state update is a reported partial failure, not grounds for an unauthorized repair. The first-run repository bootstrap is a separate creation transaction and must be verified before binding.
+5. **Commit and verify:** only after PASS, submit the approved update to the active device branch with backend-supported version preconditions; read back the branch contents, compare to the prepared candidate, re-check changed/affected links, and update only that branch's local checkpoint. A failed branch write or local-state update is a reported partial failure, not grounds for an unauthorized repair. The first-run repository bootstrap is a separate creation transaction and must be verified before binding.
 6. **Report exact units:** commits, changed files, correction commits, corrected issues and remaining failures are distinct counts. Separate task validation, optional whole-repository validation and runtime/service acceptance.
 
 A pre-write local or agent-side check never supplies a server-side concurrency guarantee. Continue using the conditional-update/conflict rules below.
 
 ## Execute approved change
 
-1. Re-read the current `main` state and relevant file versions to avoid overwriting concurrent edits.
+1. Re-read the current `main` state, activate and then re-read the bound device-branch head, and read relevant file versions to avoid overwriting concurrent edits.
 2. If anything conflicts, stop, explain the difference, and revise the plan; seek approval again when needed. Never resubmit the rejected write with a refreshed version identifier.
-3. Apply only the approved changes to `main`. Prefer atomic multi-file commits if the selected GitHub backend supports them. Never use force-push.
+3. Apply only the approved changes to the active device branch. Never write documentation directly to `main`, merge device branches, or use force-push.
 4. If a partial multi-file update occurs, report exactly which files changed and which failed. Any repair is a separate mutation and needs approval if not covered by the original approved plan.
 5. Read back the resulting commit and all affected files; compare with the approved result.
 6. Report commit identifier, verified changes, remaining gaps, and the fact that runtime state was **not** validated by this step.
