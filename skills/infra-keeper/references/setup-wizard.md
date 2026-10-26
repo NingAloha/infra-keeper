@@ -21,13 +21,16 @@ asks for an audit before setup, run this flow first: an audit needs a bound repo
 ## Safety contract
 
 Setup is read-only for GitHub except for the one-time personal-repository bootstrap, including when
-the user offers to let you "just test it". An approved local package installation and the approved
-repository bootstrap are the only setup-time mutations allowed by this flow:
+the user offers to let you "just test it". An approved local package installation, the approved
+repository bootstrap and the non-secret local binding-state write after S5 are the only setup-time
+mutations allowed by this flow:
 
 - Probe only with the read operations named below. Never create, modify, move or delete a file, and
   never create a "test" commit or branch. There are zero GitHub writes unless this is the first run
   with no binding and the user separately approves creation of the named personal repository.
-- Never change the host's environment variables, shell profiles or credential files. **No silent
+- Never change the host's environment variables, shell profiles or credential files. The only local
+  file this flow may write is the app-owned binding state after S5; it contains no token, credential
+  data or repository contents. **No silent
   installation or authentication**: if the user explicitly asks the assistant to install `gh`, show
   the exact command, package source and expected effect first, obtain separate approval for that
   one command, execute only that command in the Agent page when the host allows it, and re-check
@@ -49,6 +52,7 @@ Every read must clear the current rung of this ladder before it is made.
 
 | Stage | Reads allowed |
 | --- | --- |
+| before S1 / at any time | the app-owned local binding state only |
 | S1 | host capability only: whether a local command may run |
 | S3 | additionally, identity only: which user the local CLI is authenticated as |
 | after S4 names a candidate | that candidate only: existence/metadata; after creation, its `main` and contents |
@@ -102,9 +106,11 @@ Two ordering rules follow from this list:
 - **Guidance may precede binding.** Installation and authentication help in S3 needs no
   repository, so a user who has not chosen one yet can still be walked through setup.
 
-Nothing is persisted between runs: no config file, database or cache. Re-running is **safe** — it
-re-probes and reports current facts — but it is not claimed to be strictly idempotent: results can
-differ between runs when the host, the identity, the token scopes or the repository change.
+After S5, persist only the binding metadata in the app-owned local state file. Re-running is **safe** —
+it reads that state and re-probes the current identity and repository — but it is not claimed to be
+strictly idempotent: results can differ between runs when the host, the identity, the token scopes or
+the repository change. If the state file is missing or invalid, ask for the repository again; never
+guess from another repository.
 
 ## S1 — host capability scan
 
@@ -181,8 +187,9 @@ Agent 页面检测 gh → 展示命令并请求批准 → Agent 页面执行
 
 ## S4 — create or bind the personal repository
 
-If a binding is already stored, show it here and re-verify it; do not ask for a new name or attempt
-to create another repository. See "Repository binding (persisted)".
+At the start of setup, read the local binding state. If a valid binding is stored, show it here and
+re-verify it; do not ask for a new name or attempt to create another repository. See "Repository
+binding (persisted)". If the state is missing or invalid, continue with first-run name selection.
 
 If no binding exists, ask for a repository name. The default suggestion is `infrastructure`, and the
 full target is the authenticated user's `OWNER/infrastructure`. The user may choose another name.
@@ -210,7 +217,10 @@ full target is the authenticated user's `OWNER/infrastructure`. The user may cho
 5. Read back repository metadata. If the created repository does not have `main`, report the partial
    result and stop; do not create or rename a branch automatically.
 6. Report the visibility and continue to S5 for the root read. Only a successful S5 result creates
-   the stored binding.
+   the stored binding. After S5, write the local state atomically with the verified repository,
+   `main`, and bootstrap status (`created` for this path plus the initial commit SHA; `reused` for an
+   existing binding). A failure to write local state does not change the GitHub verdict, but must be
+   reported because the next session may ask for the repository again.
 
 ## S5 — repository verification
 
@@ -244,16 +254,29 @@ in a setup run, and the CLI reached `ready` on it. A repository name that merely
 memory, in an earlier conversation, or in notes is **not** a binding — ask the user to confirm it, and
 verify it through S4/S5 before use.
 
-Keep the record minimal: `repository` and `branch`. Verification time and CLI status may be kept as
-historical observations, never as a permission.
+Keep the record minimal and non-secret. The bundled helper stores a versioned JSON object containing:
+
+```json
+{
+  "version": 1,
+  "binding": {"repository": "OWNER/REPO", "branch": "main"},
+  "bootstrap": {"status": "created", "initial_commit_sha": "..."}
+}
+```
+
+For a reused existing binding, `bootstrap.status` is `reused` and the initial SHA may be absent.
+Verification time and CLI status may be kept as historical observations, never as a permission.
 
 - `repository`: `OWNER/REPO`
 - `branch`: the branch that was verified, normally `main`
 - optional: `verified_at`, `verified_by`, `status`
 
-Store it with whatever durable facility the host offers — host memory, host configuration, a
-host-managed store. Do not write it into the repository, and do not depend on a vendor-specific
-memory API. If the host has no durable store, say so and ask for `OWNER/REPO` each session instead.
+Store it in the bundled helper's app-owned local state file. On macOS this is under
+`~/Library/Application Support/InfraKeeper/state.json`; on Windows it is under the user's
+`LOCALAPPDATA\InfraKeeper\state.json`; on Linux and other Unix-like systems it is under
+`$XDG_STATE_HOME/infra-keeper/state.json` or `~/.local/state/infra-keeper/state.json`. Do not write
+it into the repository, and do not store tokens, `gh` credentials or repository contents. If the host
+does not allow this file to be read or written, say so and ask for `OWNER/REPO` each session instead.
 
 Reuse: ordinary maintenance tasks use the bound repository directly, without re-running S1–S6 and
 without asking for the repository again. The user's current explicit selection, and any exclusion,
@@ -295,9 +318,10 @@ outstanding: device audit (not implemented in this version)
 
 Close with three statements: no repository content was changed after bootstrap; if this was the first
 run, report the exact repository-creation command and resulting initial commit separately; any
-approved local installation or login command is also reported separately, and no other host
-configuration was changed; the bound repository is `OWNER/REPO` on `main`; the next step is a
-read-only device audit, which this version does not implement.
+approved local installation or login command is also reported separately, the local state file was
+written (or why it could not be written), and no other host configuration was changed; the bound
+repository is `OWNER/REPO` on `main`; the next step is a read-only device audit, which this version
+does not implement.
 
 ## Status vocabulary
 
@@ -321,11 +345,12 @@ name a cause.
 
 ## Re-running, resuming, re-verification
 
-Re-running is safe because nothing is stored and every question is answered by a fresh read.
+Re-running is safe because only non-secret binding metadata is stored and every GitHub question is
+answered by a fresh read.
 
 | Situation | Behaviour |
 | --- | --- |
-| User stops mid-flow | nothing is saved; say so and stop |
+| User stops mid-flow | do not write binding state; say so and stop |
 | Re-run after interruption | start at S1, report current facts, skip installation guidance for backends already present |
 | Add a second backend later | not supported in this version |
 | Re-verify a connection | re-run S3 and S5 for the bound repository |
@@ -335,7 +360,8 @@ Re-running is safe because nothing is stored and every question is answered by a
 
 - No repository file writes, branches, pull requests or commits after bootstrap. The only exception is
   the first-run `gh repo create --add-readme` operation explicitly approved for the new repository.
-- No edits to host configuration, environment or credential files.
+- No edits to host configuration, environment or credential files; the only local write is the
+  app-owned, non-secret binding state after successful S5.
 - No credential values in output, logs or diffs, including in the S6 summary.
 - No assumption that this repository is the user's infrastructure repository.
 - No `ready` verdict without a bound repository and a successful read of it.

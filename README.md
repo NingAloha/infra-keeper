@@ -31,6 +31,11 @@ is shown with its effect and requires separate approval, preferably in the Agent
 to the user's terminal only when the host lacks the required capability, and never asks for, displays
 or stores a token.
 
+After S5 succeeds, InfraKeeper stores only binding metadata in a local app state file: the repository,
+`main` branch, bootstrap status and optional initial commit SHA. It never stores tokens, `gh` credentials
+or repository contents. Each new agent session reads that file first and re-verifies the recorded
+repository before use; if the file is unavailable or invalid, it asks for the repository again.
+
 Setup ends by pointing at a device audit. That audit is **not implemented** in this version.
 
 ## Package layout

@@ -20,10 +20,10 @@ no GitHub MCP, Local Workspace or Local Git backend exists.
 
 ## Capability negotiation
 
-1. Resolve repository `OWNER/REPO` from user context — the user's selection, the repository
-   established in the conversation, or a stored InfraKeeper binding (`repository` + `branch`) for
-   this user — and never guess an unrelated repository. A binding narrows reads to one repository;
-   it never authorizes writes and never overrides an exclusion.
+1. At the start of a new agent session, read the local InfraKeeper state with the bundled helper.
+   Resolve repository `OWNER/REPO` from user context — the user's selection, the repository
+   established in the conversation, or that stored binding — and never guess an unrelated repository.
+   A binding narrows reads to one repository; it never authorizes writes and never overrides an exclusion.
 2. When local commands are permitted, check `gh --version` and `gh auth status` (never print tokens).
 3. Require the bound repository owner to match the authenticated user's GitHub login. Organization,
    collaborator and other-user repositories are outside this backend's scope, even when the account

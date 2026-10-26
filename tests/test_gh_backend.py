@@ -1,6 +1,7 @@
 import importlib.util
 import json
 import pathlib
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -21,6 +22,8 @@ class GhBackendTests(unittest.TestCase):
             commands,
             {
                 "authenticated-user",
+                "read-state",
+                "write-binding",
                 "repository",
                 "create-repository",
                 "list-commits",
@@ -184,6 +187,51 @@ class GhBackendTests(unittest.TestCase):
     def test_json_output_shape_is_serializable(self):
         value = {"action": "create", "commit_sha": "abc"}
         self.assertEqual(json.loads(json.dumps(value)), value)
+
+    def test_state_requires_verification_marker(self):
+        args = GH.build_parser().parse_args(
+            [
+                "write-binding",
+                "--owner",
+                "alice",
+                "--repo",
+                "infrastructure",
+                "--bootstrap-status",
+                "created",
+                "--initial-commit-sha",
+                "c" * 40,
+            ]
+        )
+        with patch.object(GH, "save_state") as save:
+            with self.assertRaisesRegex(GH.BackendError, "--verified"):
+                GH.write_binding(args)
+        save.assert_not_called()
+
+    def test_state_round_trip_contains_no_credentials(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "state.json"
+            with patch.object(GH, "state_path", return_value=path):
+                args = GH.build_parser().parse_args(
+                    [
+                        "write-binding",
+                        "--owner",
+                        "Alice",
+                        "--repo",
+                        "infrastructure",
+                        "--bootstrap-status",
+                        "created",
+                        "--initial-commit-sha",
+                        "c" * 40,
+                        "--verified",
+                    ]
+                )
+                result = GH.write_binding(args)
+                loaded = GH.read_state(args)
+            self.assertEqual(result["repository"], "Alice/infrastructure")
+            self.assertTrue(loaded["present"])
+            self.assertEqual(loaded["binding"]["branch"], "main")
+            self.assertEqual(loaded["bootstrap"]["initial_commit_sha"], "c" * 40)
+            self.assertNotIn("token", path.read_text(encoding="utf-8").lower())
 
 
 if __name__ == "__main__":

@@ -11,9 +11,11 @@ from __future__ import annotations
 import argparse
 import base64
 import json
+import os
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +24,7 @@ GH_TIMEOUT_SECONDS = 30
 OWNER_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,38})$")
 REPO_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,99})$")
 SHA_RE = re.compile(r"^[0-9a-fA-F]{7,64}$")
+STATE_VERSION = 1
 
 
 class BackendError(Exception):
@@ -37,6 +40,97 @@ def required_text(value: Any, name: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise BackendError(f"{name} must be a non-empty string")
     return value.strip()
+
+
+def state_path() -> Path:
+    if sys.platform == "darwin":
+        base = Path.home() / "Library" / "Application Support" / "InfraKeeper"
+    elif os.name == "nt":
+        base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "InfraKeeper"
+    else:
+        base = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state")) / "infra-keeper"
+    return base / "state.json"
+
+
+def split_repository(value: Any) -> tuple[str, str]:
+    value = required_text(value, "repository")
+    parts = value.split("/")
+    if len(parts) != 2:
+        raise BackendError("repository must be in OWNER/REPO form")
+    return repository(parts[0], parts[1])
+
+
+def load_state() -> dict[str, Any] | None:
+    path = state_path()
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        raise BackendError(f"could not read local InfraKeeper state: {redact(str(exc))}") from exc
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise BackendError("local InfraKeeper state is not valid JSON") from exc
+    if not isinstance(value, dict) or value.get("version") != STATE_VERSION:
+        raise BackendError("local InfraKeeper state has an unsupported version")
+    binding = value.get("binding")
+    if not isinstance(binding, dict):
+        raise BackendError("local InfraKeeper state has no binding")
+    owner, repo = split_repository(binding.get("repository"))
+    if binding.get("branch") != "main":
+        raise BackendError("local InfraKeeper state is not bound to main")
+    bootstrap = value.get("bootstrap")
+    if not isinstance(bootstrap, dict) or bootstrap.get("status") not in {"created", "reused"}:
+        raise BackendError("local InfraKeeper state has no valid bootstrap status")
+    normalized: dict[str, Any] = {
+        "version": STATE_VERSION,
+        "binding": {"repository": f"{owner}/{repo}", "branch": "main"},
+        "bootstrap": {"status": bootstrap["status"]},
+    }
+    if "initial_commit_sha" in bootstrap:
+        normalized["bootstrap"]["initial_commit_sha"] = sha(
+            bootstrap["initial_commit_sha"], "initial-commit-sha"
+        )
+    return normalized
+
+
+def save_state(value: dict[str, Any]) -> None:
+    path = state_path()
+    temporary: Path | None = None
+    try:
+        path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        try:
+            path.parent.chmod(0o700)
+        except OSError:
+            pass
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix="state.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            temporary = Path(handle.name)
+            json.dump(value, handle, ensure_ascii=False, indent=2, sort_keys=True)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+        temporary = None
+        try:
+            path.chmod(0o600)
+        except OSError:
+            pass
+    except OSError as exc:
+        raise BackendError(f"could not write local InfraKeeper state: {redact(str(exc))}") from exc
+    finally:
+        if temporary is not None:
+            try:
+                temporary.unlink()
+            except OSError:
+                pass
 
 
 def repository(owner: str, repo: str) -> tuple[str, str]:
@@ -232,6 +326,39 @@ def authenticated_user(_: argparse.Namespace) -> Any:
     return gh_api("user")
 
 
+def read_state(_: argparse.Namespace) -> dict[str, Any]:
+    value = load_state()
+    if value is None:
+        return {"action": "read-state", "present": False}
+    return {"action": "read-state", "present": True, **value}
+
+
+def write_binding(args: argparse.Namespace) -> dict[str, Any]:
+    if not args.verified:
+        raise BackendError("--verified is required after successful repository verification")
+    owner, repo = repository(args.owner, args.repo)
+    ref = branch(args.branch)
+    if ref != "main":
+        raise BackendError("InfraKeeper bindings must use the main branch")
+    bootstrap: dict[str, Any] = {"status": args.bootstrap_status}
+    if args.bootstrap_status == "created":
+        bootstrap["initial_commit_sha"] = sha(args.initial_commit_sha, "initial-commit-sha")
+    elif args.initial_commit_sha is not None:
+        bootstrap["initial_commit_sha"] = sha(args.initial_commit_sha, "initial-commit-sha")
+    value = {
+        "version": STATE_VERSION,
+        "binding": {"repository": f"{owner}/{repo}", "branch": ref},
+        "bootstrap": bootstrap,
+    }
+    save_state(value)
+    return {
+        "action": "write-state",
+        "repository": f"{owner}/{repo}",
+        "branch": ref,
+        "bootstrap": bootstrap,
+    }
+
+
 def authenticated_login() -> str:
     result = gh_api("user")
     if not isinstance(result, dict):
@@ -401,6 +528,17 @@ def build_parser() -> argparse.ArgumentParser:
 
     user_parser = subparsers.add_parser("authenticated-user")
     user_parser.set_defaults(handler=authenticated_user)
+
+    state_read_parser = subparsers.add_parser("read-state")
+    state_read_parser.set_defaults(handler=read_state)
+
+    state_write_parser = subparsers.add_parser("write-binding")
+    add_repository_args(state_write_parser)
+    state_write_parser.add_argument("--branch", default="main")
+    state_write_parser.add_argument("--bootstrap-status", choices=("created", "reused"), required=True)
+    state_write_parser.add_argument("--initial-commit-sha")
+    state_write_parser.add_argument("--verified", action="store_true")
+    state_write_parser.set_defaults(handler=write_binding)
 
     info_parser = subparsers.add_parser("repository")
     add_repository_args(info_parser)

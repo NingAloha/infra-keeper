@@ -16,9 +16,11 @@ checkpointed installation and authentication guidance, creates one personal repo
 binding exists and the user separately approves it, then reports CLI readiness. A local install,
 login or repository-creation command is allowed only as a separately approved, exact command.
 
-It never silently installs packages, changes host configuration or credentials, and never receives a
-token. The only setup-time GitHub mutation is the one-time approved creation of the personal
-repository with its initial README; after that, setup only verifies the stored binding. Prefer running
+It never silently installs packages, changes shell profiles, environment variables or credentials, and
+never receives a token. After successful verification, it stores only non-secret binding metadata in a
+local app state file; it never stores tokens, `gh` credentials or repository contents. The only setup-time
+GitHub mutation is the one-time approved creation of the personal repository with its initial README;
+after that, setup only verifies the stored binding. Prefer running
 each approved exact installation, login or creation command in the Agent page; fall back to the user's
 terminal only when the host cannot provide the required command or interactive-terminal capability.
 This version uses only the local GitHub CLI (`gh`) backend. It does not configure, invoke or fall back
@@ -39,6 +41,10 @@ maintain infrastructure records does **not** enter the setup flow.
 ## Select the GitHub CLI backend
 
 Read [GitHub backends](references/github-backends.md) first.
+
+At the start of a new agent session, read the local InfraKeeper state with the bundled helper before
+using a repository. Treat the recorded binding as a candidate until the current `gh` identity and
+`OWNER/REPO@main` are re-verified; never treat the local file as GitHub permission.
 
 1. Use the local **GitHub CLI (`gh`)** only when shell access and a properly authenticated CLI are available.
 2. Prefer the bundled JSON CLI helper described in [GitHub CLI instructions](references/github-cli.md#bundled-json-cli-helper) for structured reads and guarded Contents API writes.

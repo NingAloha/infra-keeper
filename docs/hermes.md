@@ -55,6 +55,12 @@ On the first setup run with no stored binding, Hermes asks for a repository name
 separate approval before creating a private repository with an initial README. After the repository
 is verified and bound, later setup runs only re-check it and never create another repository.
 
+After a successful verification, the bundled helper writes a small local state file containing only the
+binding metadata, `main` branch, bootstrap status and optional initial commit SHA. A new Hermes session
+reads that file before repository work or asking for a name, then still re-verifies the recorded repository through `gh`.
+The file contains no token, credential data or repository contents. If Hermes cannot read or persist the
+file, the current run can still finish, but the next session may ask for the repository again.
+
 ## Evidence and limitations
 
 - [CLI execution evidence](../tests/hermes-smoke-test.md): approval-before-write and single-file creation on `main`.
