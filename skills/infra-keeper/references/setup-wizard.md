@@ -365,7 +365,7 @@ repository is `OWNER/REPO` on canonical `main`; device-specific writes use `infr
 | Status | Means | Does not mean |
 | --- | --- | --- |
 | `ready` | read verification of the bound repository succeeded on the CLI (S5 only) | write access, or permission beyond read |
-| `changed-since-state` | GitHub `main` is not a normal descendant of the local binding checkpoint | that the change is unauthorized; investigate the reported comparison |
+| `changed-since-state` | GitHub `main` is not a normal descendant of the local binding checkpoint | re-read the remote state, investigate the reported comparison, and do not overwrite the checkpoint |
 | `unavailable` | the CLI is absent or local command execution is unavailable | that the user has no GitHub access by another route |
 | `unauthenticated` | the CLI exists but presents no valid identity (`401`, no login) | that the account lacks repository permission |
 | `insufficient-permissions` | authenticated, and a read was explicitly refused (`403`) for that repository | that the token is invalid |

@@ -530,37 +530,6 @@ def ensure_device_branch(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
-def update_binding_head(args: argparse.Namespace) -> dict[str, Any]:
-    if not args.verified:
-        raise BackendError("--verified is required after a successful remote branch update")
-    owner, repo = repository(args.owner, args.repo)
-    ref = branch(args.branch)
-    new_head = sha(args.head_sha, "head-sha")
-    enforce_personal_repository(owner, repo)
-    actual_head = head_sha(owner, repo, ref)
-    if actual_head != new_head:
-        raise BackendError(
-            f"remote branch HEAD does not match supplied head SHA (expected {new_head}, current {actual_head})"
-        )
-    state = load_state()
-    if state is None:
-        raise BackendError("local InfraKeeper binding state is absent")
-    stored_owner, stored_repo = split_repository(state["binding"]["repository"])
-    if (stored_owner.casefold(), stored_repo.casefold()) != (owner.casefold(), repo.casefold()):
-        raise BackendError("local binding does not match the requested repository")
-    state["version"] = STATE_VERSION
-    if ref != "main" and not is_device_branch(ref):
-        raise BackendError("only main or an infra/device/<device-id> branch can be tracked")
-    set_branch_checkpoint(state, ref, new_head)
-    save_state(state)
-    return {
-        "action": "update-state-head",
-        "repository": f"{owner}/{repo}",
-        "branch": ref,
-        "head_sha": new_head,
-    }
-
-
 def sync_binding_head(args: argparse.Namespace) -> dict[str, Any]:
     owner, repo = repository(args.owner, args.repo)
     ref = branch(args.branch)
@@ -921,13 +890,6 @@ def build_parser() -> argparse.ArgumentParser:
     device_bind_parser.add_argument("--device-id", required=True)
     device_bind_parser.add_argument("--verified", action="store_true")
     device_bind_parser.set_defaults(handler=bind_device)
-
-    state_head_parser = subparsers.add_parser("update-binding-head")
-    add_repository_args(state_head_parser)
-    state_head_parser.add_argument("--branch", default="main")
-    state_head_parser.add_argument("--head-sha", required=True)
-    state_head_parser.add_argument("--verified", action="store_true")
-    state_head_parser.set_defaults(handler=update_binding_head)
 
     state_sync_parser = subparsers.add_parser("sync-binding-head")
     add_repository_args(state_sync_parser)

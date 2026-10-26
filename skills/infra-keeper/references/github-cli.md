@@ -41,7 +41,7 @@ credentials in `gh`'s own credential mechanism. Its `create-repository` command 
 first-run bootstrap, always creates a private repository with `--add-readme`, and requires `--setup` plus
 `--approved`. Ordinary reads must match the local binding; `--setup` and `--rebind` are the only
 verification-read exceptions. `write-binding` likewise requires an explicit `--setup` or `--rebind` mode.
-Its `read-state`, `write-binding`, `bind-device` and `update-binding-head` commands manage only the local
+Its `read-state`, `write-binding` and `bind-device` commands manage only the local
 non-secret binding state. `repository-head` reads a branch HEAD. `sync-binding-head` compares the stored
 checkpoint for the requested branch with GitHub's commit graph and updates local state only when the
 remote branch is a normal descendant; it returns `changed-since-state` without updating state for a
